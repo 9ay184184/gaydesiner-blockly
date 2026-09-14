@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>gaydesiner - Blockly 雲端同步評測平台</title>
+  <!-- Blockly 核心與轉譯器 CDN -->
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
+  <script src="https://unpkg.com/blockly/python_compressed.js"></script>
+  <script src="https://unpkg.com/blockly/msg/zh-hant.js"></script>
+  
+  <!-- Firebase SDK (雲端同步) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 10px; background-color: #fff; font-size: 14px; }
+    
+    /* 頂部選單 */
+    .top-menu { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 6px 12px; border: 1px solid #ccc; margin-bottom: 8px; border-radius: 4px; }
+    .brand-title { font-size: 18px; font-weight: bold; color: #333; margin-right: 15px; }
+    .btn-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .top-btn { background: #e9ecef; border: 1px solid #adb5bd; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
+    .top-btn:hover { background: #dee2e6; }
+    .run-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
+    .run-btn:hover { background: #bd2130; }
+
+    /* 主區域兩欄配置 */
+    .main-wrapper { display: flex; gap: 10px; height: calc(100vh - 75px); }
+    .left-area { flex: 7; display: flex; flex-direction: column; height: 100%; min-width: 0; }
+    .right-area { flex: 3; display: flex; flex-direction: column; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 15px; overflow-y: auto; background: #fff; }
+
+    /* 頁籤 Toggle */
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 5px; }
+    .tab-btn { padding: 5px 15px; border: 1px solid #ccc; border-bottom: none; background: #f1f1f1; cursor: pointer; border-radius: 4px 4px 0 0; }
+    .tab-btn.active { background: white; font-weight: bold; border-top: 2px solid #007bff; }
+    
+    /* 編輯視窗 */
+    .editor-container { flex: 1; position: relative; border: 1px solid #ccc; }
+    #blocklyDiv { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    #codeDisplay { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: none; background: #272822; color: #f8f8f2; padding: 15px; margin: 0; overflow: auto; font-family: monospace; white-space: pre-wrap; }
+
+    /* 右側題目說明面板樣式 */
+    .q-title { text-align: center; color: #004085; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+    .q-section-title { font-weight: bold; text-align: center; margin: 12px 0 6px 0; }
+    .q-content { font-size: 13px; line-height: 1.6; color: #333; }
+    
+    /* 表格樣式 */
+    .sample-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    .sample-table th, .sample-table td { border: 1px solid #000; padding: 6px; vertical-align: top; text-align: center; }
+    .sample-table th { background-color: #f2f2f2; }
+
+    /* Modal 視窗 */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 550px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-weight: bold; margin-bottom: 4px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    .test-case-row { display: flex; gap: 8px; margin-bottom: 6px; }
+
+    /* 排行榜名次顏色 */
+    .rank-1 { background-color: #ffd700; font-weight: bold; }
+    .rank-2 { background-color: #c0c0c0; font-weight: bold; }
+    .rank-3 { background-color: #cd7f32; font-weight: bold; }
+    .status-badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #28a745; color: white; margin-left: 5px; }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部選單 -->
+  <div class="top-menu">
+    <div class="btn-group">
+      <span class="brand-title">gaydesiner</span>
+      <button class="top-btn" onclick="triggerImportXML()">開啟檔案</button>
+      <button class="top-btn" onclick="exportXML()">儲存積木檔案</button>
+      <button class="top-btn" onclick="runJavaScript()">執行JavaScript</button>
+      <button class="top-btn" onclick="gradeSubmission()">執行所有測試</button>
+      <button class="top-btn" onclick="openModalWithAuth()">➕ 新增輸入與輸出</button>
+      <button class="top-btn" onclick="openLeaderboardModal()">🏆 排行榜</button>
+      <input type="file" id="xmlFileInput" style="display:none" accept=".xml" onchange="importXML(event)">
+    </div>
+    
+    <div class="btn-group">
+      <label><strong>名字：</strong></label>
+      <input type="text" id="studentName" placeholder="請輸入姓名" style="padding: 3px 6px; width: 100px;">
+      <select id="questionSelect" onchange="switchQuestion()" style="padding: 3px 6px;"></select>
+      <select style="padding: 3px 6px;"><option>正體中文</option></select>
+      <button class="run-btn" onclick="gradeSubmission()">▶ 執行評測</button>
+    </div>
+  </div>
+
+  <!-- 主視窗區 -->
+  <div class="main-wrapper">
+    <!-- 左側積木與程式碼切換區 -->
+    <div class="left-area">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('blocks')">積木</button>
+        <button class="tab-btn" onclick="switchTab('javascript')">JavaScript</button>
+        <button class="tab-btn" onclick="switchTab('python')">Python</button>
+        <button class="tab-btn" onclick="switchTab('xml')">XML</button>
+      </div>
+      <div class="editor-container">
+        <div id="blocklyDiv"></div>
+        <pre id="codeDisplay"></pre>
+      </div>
+    </div>
+
+    <!-- 右側題目說明面板 -->
+    <div class="right-area">
+      <div class="q-title" id="qTitle">載入中...</div>
+      <div class="q-section-title">問題描述</div>
+      <div class="q-content" id="qDesc">...</div>
+      
+      <div class="q-section-title">題目說明</div>
+      <div class="q-content" id="qDetail">...</div>
+
+      <div class="q-section-title">範例格式</div>
+      <table class="sample-table">
+        <thead>
+          <tr>
+            <th width="30%">使用者輸入</th>
+            <th width="20%">輸出</th>
+            <th width="50%">範例說明</th>
+          </tr>
+        </thead>
+        <tbody id="sampleTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 🏆 排行榜 Modal -->
+  <div id="leaderboardModal" class="modal">
+    <div class="modal-content">
+      <h2 style="text-align: center; color: #333;">🏆 全雲端即時排行榜 <span class="status-badge">Live Sync</span></h2>
+      <table class="sample-table">
+        <thead>
+          <tr>
+            <th width="12%">名次</th>
+            <th width="22%">姓名</th>
+            <th width="28%">題目</th>
+            <th width="18%">得分</th>
+            <th width="20%">提交時間</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody">
+          <tr><td colspan="5">資料同步中...</td></tr>
+        </tbody>
+      </table>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空排行榜 (管理員)</button>
+        <button class="top-btn" onclick="closeLeaderboardModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增題目的 Modal -->
+  <div id="questionModal" class="modal">
+    <div class="modal-content">
+      <h3>新增題目 (雲端管理員模式)</h3>
+      <div class="form-group">
+        <label>題目名稱：</label>
+        <input type="text" id="newTitle" placeholder="例如：臨時屋">
+      </div>
+      <div class="form-group">
+        <label>問題描述：</label>
+        <textarea id="newDesc" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label>題目詳細說明：</label>
+        <textarea id="newDetail" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label>測試點與範例說明：</label>
+        <div id="testCasesContainer"></div>
+        <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+        <button class="top-btn" onclick="closeModal()">取消</button>
+        <button class="top-btn" style="background:#28a745; color:white; border:none;" onclick="saveNewQuestion()">儲存至雲端</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工具箱配置 -->
+  <xml id="toolbox" style="display: none">
+    <category name="邏輯" colour="%{BKY_LOGIC_HUE}">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_boolean"></block>
+    </category>
+    <category name="迴圈" colour="%{BKY_LOOPS_HUE}">
+      <block type="controls_repeat_ext"><value name="TIMES"><shadow type="math_number"><field name="NUM">10</field></shadow></value></block>
+      <block type="controls_whileUntil"></block>
+      <block type="controls_for">
+        <value name="FROM"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+        <value name="TO"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
+        <value name="BY"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+      </block>
+    </category>
+    <category name="數學" colour="%{BKY_MATH_HUE}">
+      <block type="math_number"><field name="NUM">0</field></block>
+      <block type="math_arithmetic"></block>
+      <block type="math_modulo"></block>
+    </category>
+    <category name="文字" colour="%{BKY_TEXTS_HUE}">
+      <block type="text"></block>
+      <block type="text_print"></block>
+      <block type="text_prompt_ext">
+        <value name="TEXT"><shadow type="text"><field name="TEXT">請輸入數字</field></shadow></value>
+      </block>
+    </category>
+    <category name="變數" custom="VARIABLE" colour="%{BKY_VARIABLES_HUE}"></category>
+    <category name="函式" custom="PROCEDURE" colour="%{BKY_PROCEDURES_HUE}"></category>
+  </xml>
+
+  <script>
+    // ⚙️ 1. 請在此填寫您的 Firebase 設定檔
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    // 初始化 Firebase (若未填寫則會退回本地 LocalStorage 模式)
+    let db = null;
+    let isCloudEnabled = false;
+
+    try {
+      if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        isCloudEnabled = true;
+      }
+    } catch(e) {
+      console.warn("Firebase 未設定或連線失敗，將改為本地儲存模式。");
+    }
+
+    const defaultQuestions = [
+      {
+        id: "q_temp_house",
+        title: "臨時屋",
+        desc: "為了在災害發生時，可以將災民快速送往收容所，防災中心定期舉行防災演習，將災民以運輸車送往收容所。",
+        detail: "收容所有多個臨時屋（至少1間，最多12間），每個臨時屋可容納人數不盡相同，當第一個臨時屋滿了以後，就開放第二個臨時屋，滿了之後再開放第三個臨時屋，依此類推。請幫防災中心統計防災演習期間共開放了幾個臨時屋。",
+        testCases: [
+          { inputs: ["50", "4", "30 20 15 55"], expected: "2", note: "此次演習運輸車總共運輸了50人。\n收容所共有4間臨時屋。\n臨時屋依序各可容納30、20、15、55人。\n第一間臨時屋收容了30人；第二間臨時屋收容了20人，因此總共開放了2間臨時屋。" },
+          { inputs: ["9", "3", "10 5 15"], expected: "1", note: "此次演習運輸車總共運輸了9人。\n收容所共有3間臨時屋。\n第一間臨時屋即可容納9人，因此只開放了1間臨時屋。" },
+          { inputs: ["0", "2", "30 20"], expected: "0", note: "此次演習運輸車共運輸0人，因此總共開放了0間臨時屋。" }
+        ]
+      }
+    ];
+
+    let questions = [];
+    let currentQuestion = null;
+
+    const workspace = Blockly.inject('blocklyDiv', {
+      toolbox: document.getElementById('toolbox'),
+      scrollbars: true
+    });
+
+    function getJSGen() { return (typeof javascript !== 'undefined' && javascript.javascriptGenerator) ? javascript.javascriptGenerator : Blockly.JavaScript; }
+    function getPyGen() { return (typeof python !== 'undefined' && python.pythonGenerator) ? python.pythonGenerator : Blockly.Python; }
+
+    // 初始化與雲端監聽 (題目)
+    function initQuestions() {
+      if (isCloudEnabled) {
+        db.ref('questions').on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            questions = Object.values(data);
+          } else {
+            questions = defaultQuestions;
+            db.ref('questions').set(defaultQuestions);
+          }
+          renderSelectOptions();
+          loadQuestion(questions[0].id);
+        });
+      } else {
+        const saved = localStorage.getItem('gaydesiner_questions');
+        questions = saved ? JSON.parse(saved) : defaultQuestions;
+        renderSelectOptions();
+        loadQuestion(questions[0].id);
+      }
+    }
+
+    function renderSelectOptions() {
+      const select = document.getElementById('questionSelect');
+      const curVal = select.value;
+      select.innerHTML = '';
+      questions.forEach(q => {
+        const opt = document.createElement('option');
+        opt.value = q.id;
+        opt.innerText = q.title;
+        select.appendChild(opt);
+      });
+      if (curVal && questions.some(q => q.id === curVal)) {
+        select.value = curVal;
+      }
+    }
+
+    function switchQuestion() {
+      loadQuestion(document.getElementById('questionSelect').value);
+    }
+
+    function loadQuestion(qId) {
+      currentQuestion = questions.find(q => q.id === qId) || questions[0];
+      if (!currentQuestion) return;
+
+      document.getElementById('qTitle').innerText = currentQuestion.title;
+      document.getElementById('qDesc').innerText = currentQuestion.desc;
+      document.getElementById('qDetail').innerText = currentQuestion.detail;
+
+      const tbody = document.getElementById('sampleTableBody');
+      tbody.innerHTML = '';
+      currentQuestion.testCases.forEach(tc => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align:left;">${tc.inputs.join('<br>')}</td>
+          <td>${tc.expected}</td>
+          <td style="text-align:left;">${(tc.note || '').replace(/\n/g, '<br>')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const blocklyDiv = document.getElementById('blocklyDiv');
+      const codeDisplay = document.getElementById('codeDisplay');
+
+      if (tab === 'blocks') {
+        blocklyDiv.style.display = 'block';
+        codeDisplay.style.display = 'none';
+        Blockly.svgResize(workspace);
+      } else {
+        blocklyDiv.style.display = 'none';
+        codeDisplay.style.display = 'block';
+
+        if (tab === 'javascript') {
+          codeDisplay.innerText = getJSGen().workspaceToCode(workspace) || '// 無程式碼';
+        } else if (tab === 'python') {
+          codeDisplay.innerText = getPyGen().workspaceToCode(workspace) || '# 無程式碼';
+        } else if (tab === 'xml') {
+          const xmlDom = Blockly.Xml.workspaceToDom(workspace);
+          codeDisplay.innerText = Blockly.Xml.domToPrettyText(xmlDom);
+        }
+      }
+    }
+
+    // 🏆 雲端排行榜邏輯
+    function saveScoreToLeaderboard(name, qTitle, score) {
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      const entry = {
+        name: name || '無名氏',
+        question: qTitle,
+        score: score,
+        time: timeStr,
+        timestamp: Date.now()
+      };
+
+      if (isCloudEnabled) {
+        db.ref('leaderboard').push(entry);
+      } else {
+        const saved = localStorage.getItem('gaydesiner_leaderboard');
+        let leaderboard = saved ? JSON.parse(saved) : [];
+        leaderboard.push(entry);
+        localStorage.setItem('gaydesiner_leaderboard', JSON.stringify(leaderboard));
+      }
+    }
+
+    function openLeaderboardModal() {
+      document.getElementById('leaderboardModal').style.display = 'flex';
+      renderLeaderboard();
+    }
+
+    function closeLeaderboardModal() {
+      document.getElementById('leaderboardModal').style.display = 'none';
+    }
+
+    function renderLeaderboard() {
+      if (isCloudEnabled) {
+        db.ref('leaderboard').on('value', (snapshot) => {
+          const data = snapshot.val();
+          const list = data ? Object.values(data) : [];
+          displayLeaderboardData(list);
+        });
+      } else {
+        const saved = localStorage.getItem('gaydesiner_leaderboard');
+        const list = saved ? JSON.parse(saved) : [];
+        displayLeaderboardData(list);
+      }
+    }
+
+    function displayLeaderboardData(list) {
+      list.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">目前尚無成績紀錄</td></tr>';
+        return;
+      }
+
+      list.forEach((item, idx) => {
+        const rank = idx + 1;
+        let rankClass = '';
+        if (rank === 1) rankClass = 'rank-1';
+        else if (rank === 2) rankClass = 'rank-2';
+        else if (rank === 3) rankClass = 'rank-3';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="${rankClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}</td>
+          <td>${item.name}</td>
+          <td>${item.question}</td>
+          <td><strong>${item.score} 分</strong></td>
+          <td>${item.time}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function clearLeaderboard() {
+      const pwd = prompt("請輸入管理員密碼以清空雲端排行榜：");
+      if (pwd === "184184") {
+        if (isCloudEnabled) {
+          db.ref('leaderboard').remove();
+        } else {
+          localStorage.removeItem('gaydesiner_leaderboard');
+        }
+        renderLeaderboard();
+        alert("排行榜已成功清空！");
+      } else if (pwd !== null) {
+        alert("密碼錯誤！");
+      }
+    }
+
+    // 評測與執行
+    function gradeSubmission() {
+      if (!currentQuestion) return;
+
+      let nameInput = document.getElementById('studentName').value.trim();
+      if (!nameInput) {
+        nameInput = prompt("請輸入您的名字以紀錄成績：", "學生");
+        if (nameInput) document.getElementById('studentName').value = nameInput;
+      }
+
+      const code = getJSGen().workspaceToCode(workspace);
+      let passed = 0;
+
+      const origPrompt = window.prompt;
+      const origAlert = window.alert;
+
+      let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
+
+      currentQuestion.testCases.forEach((tc, i) => {
+        let ptr = 0;
+        let outputs = [];
+        window.prompt = () => tc.inputs[ptr++] || "0";
+        window.alert = (m) => outputs.push(String(m).trim());
+
+        try {
+          new Function(code)();
+          const isOk = outputs.some(out => out === String(tc.expected).trim() || Number(out) === Number(tc.expected));
+          if (isOk) passed++;
+          resultMsg += `測試點 #${i+1}: ${isOk ? '✅ 通過' : '❌ 失敗'} (實際輸出: ${outputs.join(', ') || '無'})\n`;
+        } catch(e) {
+          resultMsg += `測試點 #${i+1}: 💥 執行錯誤 (${e.message})\n`;
+        }
+      });
+
+      window.prompt = origPrompt;
+      window.alert = origAlert;
+
+      const totalScore = Math.round((passed / currentQuestion.testCases.length) * 100);
+
+      // 自動同步登錄至雲端排行榜
+      saveScoreToLeaderboard(nameInput || '無名氏', currentQuestion.title, totalScore);
+
+      alert(`${resultMsg}\n總得分: ${totalScore} 分\n（成績已即時同步至雲端排行榜）`);
+    }
+
+    function runJavaScript() {
+      const code = getJSGen().workspaceToCode(workspace);
+      try { eval(code); } catch(e) { alert("執行錯誤: " + e.message); }
+    }
+
+    function openModalWithAuth() {
+      const pwd = prompt("【gaydesiner】請輸入管理員密碼：");
+      if (pwd === "184184") openModal();
+      else if (pwd !== null) alert("密碼錯誤！");
+    }
+
+    function openModal() {
+      document.getElementById('newTitle').value = '';
+      document.getElementById('newDesc').value = '';
+      document.getElementById('newDetail').value = '';
+      document.getElementById('testCasesContainer').innerHTML = '';
+      addTestCaseRow();
+      document.getElementById('questionModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('questionModal').style.display = 'none';
+    }
+
+    function addTestCaseRow() {
+      const div = document.createElement('div');
+      div.className = 'test-case-row';
+      div.innerHTML = `
+        <input type="text" placeholder="輸入 (逗號/換行)" class="tc-in" style="flex:1;">
+        <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
+        <input type="text" placeholder="說明" class="tc-note" style="flex:2;">
+      `;
+      document.getElementById('testCasesContainer').appendChild(div);
+    }
+
+    function saveNewQuestion() {
+      const title = document.getElementById('newTitle').value.trim();
+      if (!title) return alert("請輸入題目名稱！");
+
+      const inElems = document.getElementsByClassName('tc-in');
+      const outElems = document.getElementsByClassName('tc-out');
+      const noteElems = document.getElementsByClassName('tc-note');
+      const testCases = [];
+
+      for(let i=0; i<inElems.length; i++) {
+        if(outElems[i].value.trim() !== '') {
+          testCases.push({
+            inputs: inElems[i].value.trim().split(','),
+            expected: outElems[i].value.trim(),
+            note: noteElems[i].value.trim()
+          });
+        }
+      }
+
+      const newQ = {
+        id: "q_" + Date.now(),
+        title: title,
+        desc: document.getElementById('newDesc').value,
+        detail: document.getElementById('newDetail').value,
+        testCases: testCases
+      };
+
+      if (isCloudEnabled) {
+        db.ref('questions/' + newQ.id).set(newQ);
+      } else {
+        questions.push(newQ);
+        localStorage.setItem('gaydesiner_questions', JSON.stringify(questions));
+        renderSelectOptions();
+        loadQuestion(newQ.id);
+      }
+
+      alert("題目已成功儲存！");
+      closeModal();
+    }
+
+    function exportXML() {
+      const xmlDom = Blockly.Xml.workspaceToDom(workspace);
+      const xmlText = Blockly.Xml.domToPrettyText(xmlDom);
+      const blob = new Blob([xmlText], { type: 'text/xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gaydesiner_blocks.xml';
+      a.click();
+    }
+
+    function triggerImportXML() { document.getElementById('xmlFileInput').click(); }
+
+    function importXML(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        workspace.clear();
+        Blockly.Xml.appendDomToWorkspace(Blockly.Xml.textToDom(e.target.result), workspace);
+      };
+      reader.readAsText(file);
+    }
+
+    window.addEventListener('resize', () => Blockly.svgResize(workspace));
+    initQuestions();
+  </script>
+</body>
+</html>
