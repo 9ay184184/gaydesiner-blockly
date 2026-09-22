@@ -55,7 +55,7 @@
 
     /* Modal 視窗 */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
-    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 650px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
+    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 680px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-weight: bold; margin-bottom: 4px; }
     .form-group input, .form-group textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
@@ -129,9 +129,9 @@
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="30%">使用者輸入</th>
-            <th width="20%">輸出</th>
-            <th width="50%">範例說明</th>
+            <th width="35%">使用者輸入 (以空白分隔)</th>
+            <th width="20%">期望輸出</th>
+            <th width="45%">範例說明</th>
           </tr>
         </thead>
         <tbody id="sampleTableBody"></tbody>
@@ -168,10 +168,9 @@
     <div class="modal-content">
       <h2 style="text-align: center; color: #333;">⚙️ 管理員控制台</h2>
       
-      <!-- 分頁按鈕 -->
       <div class="tab-bar" style="margin-bottom: 15px;">
         <button class="tab-btn active" onclick="switchAdminTab('users')">👥 使用者管理與監控</button>
-        <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增題目</button>
+        <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增/編輯題目</button>
       </div>
 
       <!-- 頁籤一：線上使用者與封鎖 -->
@@ -210,7 +209,7 @@
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
-          <label>測試點與範例說明：</label>
+          <label>測試點設定 (輸入欄位請用**空白**分隔各數據，如：`50 4 30 20 15 55`)：</label>
           <div id="testCasesContainer"></div>
           <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
         </div>
@@ -281,12 +280,12 @@
   </xml>
 
   <script>
-    // ⚙️ 管理員高強度密碼 (可隨時修改)
+    // ⚙️ 管理員高強度密碼
     const ADMIN_PASSWORD = "Admin#9ay184184!Key";
 
     // ⚙️ Firebase 設定檔
     const firebaseConfig = {
-       apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
+     apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
   authDomain: "gay184184.firebaseapp.com",
   projectId: "gay184184",
   storageBucket: "gay184184.firebasestorage.app",
@@ -316,8 +315,9 @@
       desc: "為了在災害發生時，可以將災民快速送網收容所，防災中心定期舉行防災演習，將災民以運輸車送網收容所。",
       detail: "收容所有多個臨時屋（至少1間，最多12間），每個臨時屋可容納人數不盡相同，當第一個臨時屋滿了以後，就開放第二個臨時屋，滿了之後再開放第三個臨時屋，依此類推。請幫防災中心統計防災演習期間共開放了幾個臨時屋。",
       testCases: [
-        { inputs: ["50", "4", "30 20 15 55"], expected: "2", note: "總共50人，前兩間容納50人，開放2間。" },
-        { inputs: ["9", "3", "10 5 15"], expected: "1", note: "第一間即可容納9人，只開放1間。" }
+        { rawInput: "50 4 30 20 15 55", expected: "2", note: "總共50人，共有4間臨時屋，容量分別為30 20 15 55。前兩間容納50人，開放2間。" },
+        { rawInput: "9 3 10 5 15", expected: "1", note: "總共9人，共有3間臨時屋。第一間即可容納9人，只開放1間。" },
+        { rawInput: "0 2 30 20", expected: "0", note: "總共0人，開放0間臨時屋。" }
       ]
     }];
 
@@ -332,14 +332,11 @@
     function getJSGen() { return (typeof javascript !== 'undefined' && javascript.javascriptGenerator) ? javascript.javascriptGenerator : Blockly.JavaScript; }
     function getPyGen() { return (typeof python !== 'undefined' && python.pythonGenerator) ? python.pythonGenerator : Blockly.Python; }
 
-    // 使用者在線狀態與封鎖監聽
     function initUserTracker() {
       if (!isCloudEnabled) return;
-
       const userRef = db.ref('users/' + userId);
       updateOnlineStatus();
 
-      // 監聽是否被管理員封鎖
       userRef.child('isBlocked').on('value', (snapshot) => {
         const isBlocked = snapshot.val();
         document.getElementById('blockScreen').style.display = isBlocked ? 'flex' : 'none';
@@ -460,8 +457,9 @@
       tbody.innerHTML = '';
       currentQuestion.testCases.forEach(tc => {
         const tr = document.createElement('tr');
+        const inputDisp = tc.rawInput ? tc.rawInput.replace(/\s+/g, ' ') : (tc.inputs ? tc.inputs.join(' ') : '');
         tr.innerHTML = `
-          <td style="text-align:left;">${tc.inputs.join('<br>')}</td>
+          <td style="text-align:left; font-family: monospace;">${inputDisp}</td>
           <td>${tc.expected}</td>
           <td style="text-align:left;">${(tc.note || '').replace(/\n/g, '<br>')}</td>
         `;
@@ -542,6 +540,7 @@
       }
     }
 
+    // 評測核心：支援以空白/換行拆解輸入數據
     function gradeSubmission() {
       if (!currentQuestion) return;
 
@@ -560,9 +559,17 @@
       let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
 
       currentQuestion.testCases.forEach((tc, i) => {
+        // 將輸入字串拆解為陣列（自動相容舊版 inputs 陣列或新版 rawInput 字串）
+        let inputArr = [];
+        if (tc.rawInput) {
+          inputArr = tc.rawInput.trim().split(/\s+/);
+        } else if (tc.inputs) {
+          inputArr = tc.inputs.flatMap(s => String(s).trim().split(/\s+/));
+        }
+
         let ptr = 0;
         let outputs = [];
-        window.prompt = () => tc.inputs[ptr++] || "0";
+        window.prompt = () => inputArr[ptr++] || "0";
         window.alert = (m) => outputs.push(String(m).trim());
 
         try {
@@ -604,7 +611,7 @@
       const div = document.createElement('div');
       div.className = 'test-case-row';
       div.innerHTML = `
-        <input type="text" placeholder="輸入 (逗號分隔)" class="tc-in" style="flex:1;">
+        <input type="text" placeholder="輸入數據 (空白分隔)" class="tc-in" style="flex:2;">
         <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
         <input type="text" placeholder="說明" class="tc-note" style="flex:2;">
       `;
@@ -623,7 +630,7 @@
       for(let i=0; i<inElems.length; i++) {
         if(outElems[i].value.trim() !== '') {
           testCases.push({
-            inputs: inElems[i].value.trim().split(','),
+            rawInput: inElems[i].value.trim(),
             expected: outElems[i].value.trim(),
             note: noteElems[i].value.trim()
           });
