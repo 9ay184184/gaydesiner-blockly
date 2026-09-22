@@ -27,6 +27,8 @@
     .admin-btn:hover { background: #5a6268; }
     .login-btn { background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
     .login-btn:hover { background: #0069d9; }
+    .del-btn { background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+    .del-btn:hover { background: #bd2130; }
     .run-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
     .run-btn:hover { background: #bd2130; }
 
@@ -52,7 +54,7 @@
     
     /* 表格樣式 */
     .sample-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-    .sample-table th, .sample-table td { border: 1px solid #000; padding: 6px; vertical-align: top; text-align: center; }
+    .sample-table th, .sample-table td { border: 1px solid #000; padding: 6px; vertical-align: middle; text-align: center; }
     .sample-table th { background-color: #f2f2f2; }
     .input-code-block { text-align: left; font-family: monospace; white-space: pre-wrap; background: #f8f9fa; padding: 4px; border-radius: 3px; }
 
@@ -143,13 +145,20 @@
     </div>
   </div>
 
-  <!-- 👤 登入 Modal -->
+  <!-- 👤 登入 / 註冊 Modal (含密碼驗證) -->
   <div id="loginModal" class="modal">
     <div class="modal-content" style="width: 380px;">
-      <h3 style="text-align: center; margin-top: 0;">👤 使用者登入</h3>
+      <h3 style="text-align: center; margin-top: 0;">👤 使用者登入 / 註冊</h3>
+      <div style="font-size: 12px; color: #666; margin-bottom: 12px; text-align: center;">
+        若首次輸入姓名，系統將自動以此密碼為您註冊帳號。
+      </div>
       <div class="form-group">
-        <label>請輸入您的姓名 / 暱稱：</label>
+        <label>姓名 / 暱稱：</label>
         <input type="text" id="loginNameInput" placeholder="例如：王小明">
+      </div>
+      <div class="form-group">
+        <label>登入密碼：</label>
+        <input type="password" id="loginPasswordInput" placeholder="請輸入密碼">
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
         <button class="top-btn" onclick="closeLoginModal()">取消</button>
@@ -158,22 +167,23 @@
     </div>
   </div>
 
-  <!-- 🏆 排行榜 Modal -->
+  <!-- 🏆 排行榜 Modal (支援紀錄單筆刪除) -->
   <div id="leaderboardModal" class="modal">
     <div class="modal-content">
       <h2 style="text-align: center; color: #333;">🏆 全雲端即時排行榜 <span class="status-badge">Live Sync</span></h2>
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="12%">名次</th>
-            <th width="22%">姓名</th>
-            <th width="28%">題目</th>
-            <th width="18%">得分</th>
-            <th width="20%">提交時間</th>
+            <th width="10%">名次</th>
+            <th width="20%">姓名</th>
+            <th width="25%">題目</th>
+            <th width="15%">得分</th>
+            <th width="18%">提交時間</th>
+            <th width="12%">操作</th>
           </tr>
         </thead>
         <tbody id="leaderboardBody">
-          <tr><td colspan="5">資料同步中...</td></tr>
+          <tr><td colspan="6">資料同步中...</td></tr>
         </tbody>
       </table>
       <div style="text-align: right; margin-top: 20px;">
@@ -192,7 +202,7 @@
         <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增/編輯題目</button>
       </div>
 
-      <!-- 頁籤一：目前僅顯示在線使用者 -->
+      <!-- 頁籤一：僅顯示在線使用者 -->
       <div id="adminTabUsers">
         <h3>目前在線使用者 (<span id="onlineCount">0</span> 人)</h3>
         <table class="sample-table">
@@ -209,7 +219,7 @@
           </tbody>
         </table>
         <div style="margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;">
-          <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空排行榜紀錄</button>
+          <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空全部排行榜紀錄</button>
         </div>
       </div>
 
@@ -228,7 +238,7 @@
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
-          <label>測試點設定 (可貼入多行與空白分隔之數據，如圖片格式)：</label>
+          <label>測試點設定 (可貼入多行與空白分隔之數據)：</label>
           <div id="testCasesContainer"></div>
           <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
         </div>
@@ -361,6 +371,7 @@
 
     function openLoginModal() {
       document.getElementById('loginNameInput').value = userName;
+      document.getElementById('loginPasswordInput').value = '';
       document.getElementById('loginModal').style.display = 'flex';
     }
 
@@ -368,14 +379,58 @@
       document.getElementById('loginModal').style.display = 'none';
     }
 
+    // 含密碼驗證與自動註冊的登入邏輯
     function performLogin() {
       const name = document.getElementById('loginNameInput').value.trim();
+      const pwd = document.getElementById('loginPasswordInput').value.trim();
+
       if (!name) return alert("請輸入姓名！");
-      userName = name;
-      localStorage.setItem('gaydesiner_uname', userName);
-      updateUserNameUI();
-      updateOnlineStatus();
-      closeLoginModal();
+      if (!pwd) return alert("請輸入密碼！");
+
+      if (!isCloudEnabled) {
+        userName = name;
+        localStorage.setItem('gaydesiner_uname', userName);
+        updateUserNameUI();
+        closeLoginModal();
+        return;
+      }
+
+      // 檢查使用者帳號資料庫
+      const userAccountRef = db.ref('accounts/' + name);
+      userAccountRef.once('value').then((snapshot) => {
+        if (snapshot.exists()) {
+          // 帳號存在，比對密碼
+          const storedData = snapshot.val();
+          if (storedData.password === pwd) {
+            userName = name;
+            userId = storedData.uid || userId;
+            localStorage.setItem('gaydesiner_uname', userName);
+            localStorage.setItem('gaydesiner_uid', userId);
+            updateUserNameUI();
+            updateOnlineStatus();
+            alert(`歡迎回來，${userName}！`);
+            closeLoginModal();
+          } else {
+            alert("❌ 密碼錯誤！登入失敗。");
+          }
+        } else {
+          // 帳號不存在，進行註冊
+          if (confirm(`使用者 「${name}」 尚未存在，是否以此密碼建立新帳號？`)) {
+            userAccountRef.set({
+              uid: userId,
+              password: pwd,
+              createdAt: Date.now()
+            }).then(() => {
+              userName = name;
+              localStorage.setItem('gaydesiner_uname', userName);
+              updateUserNameUI();
+              updateOnlineStatus();
+              alert(`🎉 帳號註冊成功！已為您登入。`);
+              closeLoginModal();
+            });
+          }
+        }
+      });
     }
 
     function initUserTracker() {
@@ -385,7 +440,6 @@
       const userRef = db.ref('users/' + userId);
       const connectedRef = db.ref('.info/connected');
 
-      // 利用 Firebase 特有的離線處理機制 (.info/connected + onDisconnect)
       connectedRef.on('value', (snap) => {
         if (snap.val() === true) {
           userRef.onDisconnect().update({ online: false });
@@ -449,7 +503,6 @@
 
         Object.keys(users).forEach(uid => {
           const u = users[uid];
-          // 關鍵離線過濾條件：只顯示 online 為 true 的使用者
           if (u.online === true) {
             onlineCount++;
             const tr = document.createElement('tr');
@@ -571,19 +624,24 @@
     function renderLeaderboard() {
       if (isCloudEnabled) {
         db.ref('leaderboard').on('value', (snapshot) => {
-          const list = snapshot.val() ? Object.values(snapshot.val()) : [];
-          displayLeaderboardData(list);
+          const rawData = snapshot.val() || {};
+          displayLeaderboardData(rawData);
         });
       }
     }
 
-    function displayLeaderboardData(list) {
+    function displayLeaderboardData(rawData) {
+      const list = Object.keys(rawData).map(key => ({
+        key: key,
+        ...rawData[key]
+      }));
+
       list.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
       const tbody = document.getElementById('leaderboardBody');
       tbody.innerHTML = '';
 
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">目前尚無成績紀錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">目前尚無成績紀錄</td></tr>';
         return;
       }
 
@@ -596,19 +654,30 @@
           <td>${item.question}</td>
           <td><strong>${item.score} 分</strong></td>
           <td>${item.time}</td>
+          <td><button class="del-btn" onclick="deleteRecord('${item.key}')">🗑 刪除</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function clearLeaderboard() {
-      if (confirm("確定要清空全站排行榜紀錄嗎？")) {
-        if (isCloudEnabled) db.ref('leaderboard').remove();
-        alert("排行榜已成功清空！");
+    // 單筆紀錄刪除功能
+    function deleteRecord(recordKey) {
+      if (confirm("確定要刪除這筆成績紀錄嗎？")) {
+        if (isCloudEnabled) {
+          db.ref('leaderboard/' + recordKey).remove().then(() => {
+            alert("該筆紀錄已刪除！");
+          });
+        }
       }
     }
 
-    // 評測核心：拆解包含多行與空白分隔的文字
+    function clearLeaderboard() {
+      if (confirm("確定要清空全站所有排行榜紀錄嗎？")) {
+        if (isCloudEnabled) db.ref('leaderboard').remove();
+        alert("排行榜已完全清空！");
+      }
+    }
+
     function gradeSubmission() {
       if (!currentQuestion) return;
 
@@ -626,7 +695,6 @@
       let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
 
       currentQuestion.testCases.forEach((tc, i) => {
-        // 解析多行與空白之數據
         let inputArr = [];
         if (tc.rawInput) {
           inputArr = tc.rawInput.trim().split(/\s+/);
