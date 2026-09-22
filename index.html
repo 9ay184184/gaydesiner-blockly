@@ -23,6 +23,8 @@
     .btn-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .top-btn { background: #e9ecef; border: 1px solid #adb5bd; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
     .top-btn:hover { background: #dee2e6; }
+    .admin-btn { background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
+    .admin-btn:hover { background: #5a6268; }
     .run-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
     .run-btn:hover { background: #bd2130; }
 
@@ -53,7 +55,7 @@
 
     /* Modal 視窗 */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
-    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 550px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 650px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-weight: bold; margin-bottom: 4px; }
     .form-group input, .form-group textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
@@ -64,9 +66,19 @@
     .rank-2 { background-color: #c0c0c0; font-weight: bold; }
     .rank-3 { background-color: #cd7f32; font-weight: bold; }
     .status-badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #28a745; color: white; margin-left: 5px; }
+
+    /* 被封鎖時的畫面遮罩 */
+    #blockScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); color: white; z-index: 99999; flex-direction: column; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; }
   </style>
 </head>
 <body>
+
+  <!-- 封鎖畫面覆蓋層 -->
+  <div id="blockScreen">
+    <div style="font-size: 60px; margin-bottom: 20px;">⛔</div>
+    <div>您的使用權限已被管理員暫時封鎖</div>
+    <div style="font-size: 14px; color: #aaa; margin-top: 15px;">請聯繫系統管理員解鎖</div>
+  </div>
 
   <!-- 頂部選單 -->
   <div class="top-menu">
@@ -76,14 +88,14 @@
       <button class="top-btn" onclick="exportXML()">儲存積木檔案</button>
       <button class="top-btn" onclick="runJavaScript()">執行JavaScript</button>
       <button class="top-btn" onclick="gradeSubmission()">執行所有測試</button>
-      <button class="top-btn" onclick="openModalWithAuth()">➕ 新增輸入與輸出</button>
       <button class="top-btn" onclick="openLeaderboardModal()">🏆 排行榜</button>
+      <button class="admin-btn" onclick="openAdminPanel()">⚙️ 管理員後台</button>
       <input type="file" id="xmlFileInput" style="display:none" accept=".xml" onchange="importXML(event)">
     </div>
     
     <div class="btn-group">
       <label><strong>名字：</strong></label>
-      <input type="text" id="studentName" placeholder="請輸入姓名" style="padding: 3px 6px; width: 100px;">
+      <input type="text" id="studentName" placeholder="請輸入姓名" onchange="updateOnlineStatus()" style="padding: 3px 6px; width: 100px;">
       <select id="questionSelect" onchange="switchQuestion()" style="padding: 3px 6px;"></select>
       <select style="padding: 3px 6px;"><option>正體中文</option></select>
       <button class="run-btn" onclick="gradeSubmission()">▶ 執行評測</button>
@@ -92,7 +104,6 @@
 
   <!-- 主視窗區 -->
   <div class="main-wrapper">
-    <!-- 左側積木與程式碼切換區 -->
     <div class="left-area">
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('blocks')">積木</button>
@@ -106,7 +117,6 @@
       </div>
     </div>
 
-    <!-- 右側題目說明面板 -->
     <div class="right-area">
       <div class="q-title" id="qTitle">載入中...</div>
       <div class="q-section-title">問題描述</div>
@@ -147,48 +157,86 @@
           <tr><td colspan="5">資料同步中...</td></tr>
         </tbody>
       </table>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-        <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空排行榜 (管理員)</button>
+      <div style="text-align: right; margin-top: 20px;">
         <button class="top-btn" onclick="closeLeaderboardModal()">關閉</button>
       </div>
     </div>
   </div>
 
-  <!-- 新增題目的 Modal -->
-  <div id="questionModal" class="modal">
+  <!-- ⚙️ 管理員控制後台 Modal -->
+  <div id="adminModal" class="modal">
     <div class="modal-content">
-      <h3>新增題目 (雲端管理員模式)</h3>
-      <div class="form-group">
-        <label>題目名稱：</label>
-        <input type="text" id="newTitle" placeholder="例如：臨時屋">
+      <h2 style="text-align: center; color: #333;">⚙️ 管理員控制台</h2>
+      
+      <!-- 分頁按鈕 -->
+      <div class="tab-bar" style="margin-bottom: 15px;">
+        <button class="tab-btn active" onclick="switchAdminTab('users')">👥 使用者管理與監控</button>
+        <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增題目</button>
       </div>
-      <div class="form-group">
-        <label>問題描述：</label>
-        <textarea id="newDesc" rows="2"></textarea>
+
+      <!-- 頁籤一：線上使用者與封鎖 -->
+      <div id="adminTabUsers">
+        <h3>目前在線/歷史使用者</h3>
+        <table class="sample-table">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>狀態</th>
+              <th>最近在線時間</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="userListBody">
+            <tr><td colspan="4">載入中...</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;">
+          <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空排行榜紀錄</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>題目詳細說明：</label>
-        <textarea id="newDetail" rows="3"></textarea>
+
+      <!-- 頁籤二：新增題目 -->
+      <div id="adminTabAddQ" style="display:none;">
+        <div class="form-group">
+          <label>題目名稱：</label>
+          <input type="text" id="newTitle" placeholder="例如：臨時屋">
+        </div>
+        <div class="form-group">
+          <label>問題描述：</label>
+          <textarea id="newDesc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>題目詳細說明：</label>
+          <textarea id="newDetail" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>測試點與範例說明：</label>
+          <div id="testCasesContainer"></div>
+          <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
+        </div>
+        <button class="top-btn" style="background:#28a745; color:white; border:none; width: 100%; margin-top: 10px;" onclick="saveNewQuestion()">儲存題目至雲端</button>
       </div>
-      <div class="form-group">
-        <label>測試點與範例說明：</label>
-        <div id="testCasesContainer"></div>
-        <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
-        <button class="top-btn" onclick="closeModal()">取消</button>
-        <button class="top-btn" style="background:#28a745; color:white; border:none;" onclick="saveNewQuestion()">儲存至雲端</button>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+        <button class="top-btn" onclick="closeAdminModal()">關閉後台</button>
       </div>
     </div>
   </div>
 
   <!-- 工具箱配置 -->
   <xml id="toolbox" style="display: none">
+    <category name="專用" colour="#ff0000">
+      <block type="text_print"></block>
+      <block type="text_prompt_ext">
+        <value name="TEXT"><shadow type="text"><field name="TEXT">請輸入數據</field></shadow></value>
+      </block>
+    </category>
     <category name="邏輯" colour="%{BKY_LOGIC_HUE}">
       <block type="controls_if"></block>
       <block type="logic_compare"></block>
       <block type="logic_operation"></block>
       <block type="logic_boolean"></block>
+      <block type="logic_negate"></block>
     </category>
     <category name="迴圈" colour="%{BKY_LOOPS_HUE}">
       <block type="controls_repeat_ext"><value name="TIMES"><shadow type="math_number"><field name="NUM">10</field></shadow></value></block>
@@ -198,27 +246,47 @@
         <value name="TO"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
         <value name="BY"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
       </block>
+      <block type="controls_forEach"></block>
     </category>
     <category name="數學" colour="%{BKY_MATH_HUE}">
       <block type="math_number"><field name="NUM">0</field></block>
       <block type="math_arithmetic"></block>
+      <block type="math_single"></block>
       <block type="math_modulo"></block>
+      <block type="math_round"></block>
     </category>
     <category name="文字" colour="%{BKY_TEXTS_HUE}">
       <block type="text"></block>
+      <block type="text_join"></block>
+      <block type="text_append"></block>
+      <block type="text_length"></block>
       <block type="text_print"></block>
       <block type="text_prompt_ext">
-        <value name="TEXT"><shadow type="text"><field name="TEXT">請輸入數字</field></shadow></value>
+        <value name="TEXT"><shadow type="text"><field name="TEXT">請輸入文字</field></shadow></value>
       </block>
+    </category>
+    <category name="清單" colour="%{BKY_LISTS_HUE}">
+      <block type="lists_create_with"><mutation items="0"></mutation></block>
+      <block type="lists_create_with"></block>
+      <block type="lists_repeat">
+        <value name="NUM"><shadow type="math_number"><field name="NUM">5</field></shadow></value>
+      </block>
+      <block type="lists_length"></block>
+      <block type="lists_isEmpty"></block>
+      <block type="lists_getIndex"></block>
+      <block type="lists_setIndex"></block>
     </category>
     <category name="變數" custom="VARIABLE" colour="%{BKY_VARIABLES_HUE}"></category>
     <category name="函式" custom="PROCEDURE" colour="%{BKY_PROCEDURES_HUE}"></category>
   </xml>
 
   <script>
-    // ⚙️ 1. 請在此填寫您的 Firebase 設定檔
+    // ⚙️ 管理員高強度密碼 (可隨時修改)
+    const ADMIN_PASSWORD = "Admin#9ay184184!Key";
+
+    // ⚙️ Firebase 設定檔
     const firebaseConfig = {
-      apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
+       apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
   authDomain: "gay184184.firebaseapp.com",
   projectId: "gay184184",
   storageBucket: "gay184184.firebasestorage.app",
@@ -227,9 +295,10 @@
   measurementId: "G-RTBQJ8ZD6S"
     };
 
-    // 初始化 Firebase (若未填寫則會退回本地 LocalStorage 模式)
     let db = null;
     let isCloudEnabled = false;
+    let userId = localStorage.getItem('gaydesiner_uid') || 'user_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('gaydesiner_uid', userId);
 
     try {
       if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
@@ -238,22 +307,19 @@
         isCloudEnabled = true;
       }
     } catch(e) {
-      console.warn("Firebase 未設定或連線失敗，將改為本地儲存模式。");
+      console.warn("Firebase 未設定或連線失敗。");
     }
 
-    const defaultQuestions = [
-      {
-        id: "q_temp_house",
-        title: "臨時屋",
-        desc: "為了在災害發生時，可以將災民快速送往收容所，防災中心定期舉行防災演習，將災民以運輸車送往收容所。",
-        detail: "收容所有多個臨時屋（至少1間，最多12間），每個臨時屋可容納人數不盡相同，當第一個臨時屋滿了以後，就開放第二個臨時屋，滿了之後再開放第三個臨時屋，依此類推。請幫防災中心統計防災演習期間共開放了幾個臨時屋。",
-        testCases: [
-          { inputs: ["50", "4", "30 20 15 55"], expected: "2", note: "此次演習運輸車總共運輸了50人。\n收容所共有4間臨時屋。\n臨時屋依序各可容納30、20、15、55人。\n第一間臨時屋收容了30人；第二間臨時屋收容了20人，因此總共開放了2間臨時屋。" },
-          { inputs: ["9", "3", "10 5 15"], expected: "1", note: "此次演習運輸車總共運輸了9人。\n收容所共有3間臨時屋。\n第一間臨時屋即可容納9人，因此只開放了1間臨時屋。" },
-          { inputs: ["0", "2", "30 20"], expected: "0", note: "此次演習運輸車共運輸0人，因此總共開放了0間臨時屋。" }
-        ]
-      }
-    ];
+    const defaultQuestions = [{
+      id: "q_temp_house",
+      title: "臨時屋",
+      desc: "為了在災害發生時，可以將災民快速送網收容所，防災中心定期舉行防災演習，將災民以運輸車送網收容所。",
+      detail: "收容所有多個臨時屋（至少1間，最多12間），每個臨時屋可容納人數不盡相同，當第一個臨時屋滿了以後，就開放第二個臨時屋，滿了之後再開放第三個臨時屋，依此類推。請幫防災中心統計防災演習期間共開放了幾個臨時屋。",
+      testCases: [
+        { inputs: ["50", "4", "30 20 15 55"], expected: "2", note: "總共50人，前兩間容納50人，開放2間。" },
+        { inputs: ["9", "3", "10 5 15"], expected: "1", note: "第一間即可容納9人，只開放1間。" }
+      ]
+    }];
 
     let questions = [];
     let currentQuestion = null;
@@ -266,23 +332,102 @@
     function getJSGen() { return (typeof javascript !== 'undefined' && javascript.javascriptGenerator) ? javascript.javascriptGenerator : Blockly.JavaScript; }
     function getPyGen() { return (typeof python !== 'undefined' && python.pythonGenerator) ? python.pythonGenerator : Blockly.Python; }
 
-    // 初始化與雲端監聽 (題目)
+    // 使用者在線狀態與封鎖監聽
+    function initUserTracker() {
+      if (!isCloudEnabled) return;
+
+      const userRef = db.ref('users/' + userId);
+      updateOnlineStatus();
+
+      // 監聽是否被管理員封鎖
+      userRef.child('isBlocked').on('value', (snapshot) => {
+        const isBlocked = snapshot.val();
+        document.getElementById('blockScreen').style.display = isBlocked ? 'flex' : 'none';
+      });
+    }
+
+    function updateOnlineStatus() {
+      if (!isCloudEnabled) return;
+      const name = document.getElementById('studentName').value.trim() || '無名氏';
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      db.ref('users/' + userId).update({
+        name: name,
+        lastActive: timeStr,
+        timestamp: Date.now()
+      });
+    }
+
+    function openAdminPanel() {
+      const pwd = prompt("🔐 請輸入高強度管理員密碼：");
+      if (pwd === ADMIN_PASSWORD) {
+        document.getElementById('adminModal').style.display = 'flex';
+        loadAdminUsers();
+      } else if (pwd !== null) {
+        alert("❌ 密碼錯誤！存取被拒絕。");
+      }
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').style.display = 'none';
+    }
+
+    function switchAdminTab(tab) {
+      document.getElementById('adminTabUsers').style.display = tab === 'users' ? 'block' : 'none';
+      document.getElementById('adminTabAddQ').style.display = tab === 'addQ' ? 'block' : 'none';
+      if (tab === 'addQ' && document.getElementById('testCasesContainer').children.length === 0) {
+        addTestCaseRow();
+      }
+    }
+
+    function loadAdminUsers() {
+      if (!isCloudEnabled) {
+        document.getElementById('userListBody').innerHTML = '<tr><td colspan="4">未啟動 Firebase 雲端模式</td></tr>';
+        return;
+      }
+
+      db.ref('users').on('value', (snapshot) => {
+        const users = snapshot.val() || {};
+        const tbody = document.getElementById('userListBody');
+        tbody.innerHTML = '';
+
+        Object.keys(users).forEach(uid => {
+          const u = users[uid];
+          const tr = document.createElement('tr');
+          const isBlocked = u.isBlocked || false;
+
+          tr.innerHTML = `
+            <td>${u.name || '無名氏'} (${uid.substr(0, 5)})</td>
+            <td>${isBlocked ? '<span style="color:red;font-weight:bold;">已封鎖</span>' : '<span style="color:green;">正常</span>'}</td>
+            <td>${u.lastActive || '未知'}</td>
+            <td>
+              <button class="top-btn" style="background:${isBlocked ? '#28a745' : '#dc3545'}; color:white; border:none;" onclick="toggleBlockUser('${uid}', ${isBlocked})">
+                ${isBlocked ? '🟢 解鎖' : '🚫 封鎖'}
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    function toggleBlockUser(uid, currentStatus) {
+      if (isCloudEnabled) {
+        db.ref('users/' + uid).update({ isBlocked: !currentStatus });
+      }
+    }
+
     function initQuestions() {
       if (isCloudEnabled) {
         db.ref('questions').on('value', (snapshot) => {
           const data = snapshot.val();
-          if (data) {
-            questions = Object.values(data);
-          } else {
-            questions = defaultQuestions;
-            db.ref('questions').set(defaultQuestions);
-          }
+          questions = data ? Object.values(data) : defaultQuestions;
           renderSelectOptions();
           loadQuestion(questions[0].id);
         });
       } else {
-        const saved = localStorage.getItem('gaydesiner_questions');
-        questions = saved ? JSON.parse(saved) : defaultQuestions;
+        questions = defaultQuestions;
         renderSelectOptions();
         loadQuestion(questions[0].id);
       }
@@ -290,7 +435,6 @@
 
     function renderSelectOptions() {
       const select = document.getElementById('questionSelect');
-      const curVal = select.value;
       select.innerHTML = '';
       questions.forEach(q => {
         const opt = document.createElement('option');
@@ -298,9 +442,6 @@
         opt.innerText = q.title;
         select.appendChild(opt);
       });
-      if (curVal && questions.some(q => q.id === curVal)) {
-        select.value = curVal;
-      }
     }
 
     function switchQuestion() {
@@ -329,7 +470,7 @@
     }
 
     function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-bar .tab-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
 
       const blocklyDiv = document.getElementById('blocklyDiv');
@@ -343,37 +484,12 @@
         blocklyDiv.style.display = 'none';
         codeDisplay.style.display = 'block';
 
-        if (tab === 'javascript') {
-          codeDisplay.innerText = getJSGen().workspaceToCode(workspace) || '// 無程式碼';
-        } else if (tab === 'python') {
-          codeDisplay.innerText = getPyGen().workspaceToCode(workspace) || '# 無程式碼';
-        } else if (tab === 'xml') {
+        if (tab === 'javascript') codeDisplay.innerText = getJSGen().workspaceToCode(workspace) || '// 無程式碼';
+        else if (tab === 'python') codeDisplay.innerText = getPyGen().workspaceToCode(workspace) || '# 無程式碼';
+        else if (tab === 'xml') {
           const xmlDom = Blockly.Xml.workspaceToDom(workspace);
           codeDisplay.innerText = Blockly.Xml.domToPrettyText(xmlDom);
         }
-      }
-    }
-
-    // 🏆 雲端排行榜邏輯
-    function saveScoreToLeaderboard(name, qTitle, score) {
-      const now = new Date();
-      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-      const entry = {
-        name: name || '無名氏',
-        question: qTitle,
-        score: score,
-        time: timeStr,
-        timestamp: Date.now()
-      };
-
-      if (isCloudEnabled) {
-        db.ref('leaderboard').push(entry);
-      } else {
-        const saved = localStorage.getItem('gaydesiner_leaderboard');
-        let leaderboard = saved ? JSON.parse(saved) : [];
-        leaderboard.push(entry);
-        localStorage.setItem('gaydesiner_leaderboard', JSON.stringify(leaderboard));
       }
     }
 
@@ -389,14 +505,9 @@
     function renderLeaderboard() {
       if (isCloudEnabled) {
         db.ref('leaderboard').on('value', (snapshot) => {
-          const data = snapshot.val();
-          const list = data ? Object.values(data) : [];
+          const list = snapshot.val() ? Object.values(snapshot.val()) : [];
           displayLeaderboardData(list);
         });
-      } else {
-        const saved = localStorage.getItem('gaydesiner_leaderboard');
-        const list = saved ? JSON.parse(saved) : [];
-        displayLeaderboardData(list);
       }
     }
 
@@ -412,14 +523,9 @@
 
       list.forEach((item, idx) => {
         const rank = idx + 1;
-        let rankClass = '';
-        if (rank === 1) rankClass = 'rank-1';
-        else if (rank === 2) rankClass = 'rank-2';
-        else if (rank === 3) rankClass = 'rank-3';
-
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="${rankClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}</td>
+          <td class="${rank <= 3 ? 'rank-' + rank : ''}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}</td>
           <td>${item.name}</td>
           <td>${item.question}</td>
           <td><strong>${item.score} 分</strong></td>
@@ -430,21 +536,12 @@
     }
 
     function clearLeaderboard() {
-      const pwd = prompt("請輸入管理員密碼以清空雲端排行榜：");
-      if (pwd === "184184") {
-        if (isCloudEnabled) {
-          db.ref('leaderboard').remove();
-        } else {
-          localStorage.removeItem('gaydesiner_leaderboard');
-        }
-        renderLeaderboard();
+      if (confirm("確定要清空全站排行榜紀錄嗎？")) {
+        if (isCloudEnabled) db.ref('leaderboard').remove();
         alert("排行榜已成功清空！");
-      } else if (pwd !== null) {
-        alert("密碼錯誤！");
       }
     }
 
-    // 評測與執行
     function gradeSubmission() {
       if (!currentQuestion) return;
 
@@ -482,9 +579,18 @@
       window.alert = origAlert;
 
       const totalScore = Math.round((passed / currentQuestion.testCases.length) * 100);
-
-      // 自動同步登錄至雲端排行榜
-      saveScoreToLeaderboard(nameInput || '無名氏', currentQuestion.title, totalScore);
+      
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      if (isCloudEnabled) {
+        db.ref('leaderboard').push({
+          name: nameInput || '無名氏',
+          question: currentQuestion.title,
+          score: totalScore,
+          time: timeStr,
+          timestamp: Date.now()
+        });
+      }
 
       alert(`${resultMsg}\n總得分: ${totalScore} 分\n（成績已即時同步至雲端排行榜）`);
     }
@@ -494,30 +600,11 @@
       try { eval(code); } catch(e) { alert("執行錯誤: " + e.message); }
     }
 
-    function openModalWithAuth() {
-      const pwd = prompt("【gaydesiner】請輸入管理員密碼：");
-      if (pwd === "184184") openModal();
-      else if (pwd !== null) alert("密碼錯誤！");
-    }
-
-    function openModal() {
-      document.getElementById('newTitle').value = '';
-      document.getElementById('newDesc').value = '';
-      document.getElementById('newDetail').value = '';
-      document.getElementById('testCasesContainer').innerHTML = '';
-      addTestCaseRow();
-      document.getElementById('questionModal').style.display = 'flex';
-    }
-
-    function closeModal() {
-      document.getElementById('questionModal').style.display = 'none';
-    }
-
     function addTestCaseRow() {
       const div = document.createElement('div');
       div.className = 'test-case-row';
       div.innerHTML = `
-        <input type="text" placeholder="輸入 (逗號/換行)" class="tc-in" style="flex:1;">
+        <input type="text" placeholder="輸入 (逗號分隔)" class="tc-in" style="flex:1;">
         <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
         <input type="text" placeholder="說明" class="tc-note" style="flex:2;">
       `;
@@ -553,15 +640,10 @@
 
       if (isCloudEnabled) {
         db.ref('questions/' + newQ.id).set(newQ);
-      } else {
-        questions.push(newQ);
-        localStorage.setItem('gaydesiner_questions', JSON.stringify(questions));
-        renderSelectOptions();
-        loadQuestion(newQ.id);
       }
 
-      alert("題目已成功儲存！");
-      closeModal();
+      alert("題目已成功儲存至雲端！");
+      closeAdminModal();
     }
 
     function exportXML() {
@@ -589,6 +671,7 @@
 
     window.addEventListener('resize', () => Blockly.svgResize(workspace));
     initQuestions();
+    initUserTracker();
   </script>
 </body>
 </html>
