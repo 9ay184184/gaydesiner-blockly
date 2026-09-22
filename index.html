@@ -25,6 +25,8 @@
     .top-btn:hover { background: #dee2e6; }
     .admin-btn { background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
     .admin-btn:hover { background: #5a6268; }
+    .login-btn { background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
+    .login-btn:hover { background: #0069d9; }
     .run-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
     .run-btn:hover { background: #bd2130; }
 
@@ -52,6 +54,7 @@
     .sample-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
     .sample-table th, .sample-table td { border: 1px solid #000; padding: 6px; vertical-align: top; text-align: center; }
     .sample-table th { background-color: #f2f2f2; }
+    .input-code-block { text-align: left; font-family: monospace; white-space: pre-wrap; background: #f8f9fa; padding: 4px; border-radius: 3px; }
 
     /* Modal 視窗 */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
@@ -59,6 +62,7 @@
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-weight: bold; margin-bottom: 4px; }
     .form-group input, .form-group textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    .test-case-card { border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: #fdfdfd; }
     .test-case-row { display: flex; gap: 8px; margin-bottom: 6px; }
 
     /* 排行榜名次顏色 */
@@ -94,8 +98,8 @@
     </div>
     
     <div class="btn-group">
-      <label><strong>名字：</strong></label>
-      <input type="text" id="studentName" placeholder="請輸入姓名" onchange="updateOnlineStatus()" style="padding: 3px 6px; width: 100px;">
+      <span><strong>使用者：</strong><span id="userDisplayName" style="color:#007bff; font-weight:bold;">未登入</span></span>
+      <button class="login-btn" onclick="openLoginModal()">👤 登入 / 切換身分</button>
       <select id="questionSelect" onchange="switchQuestion()" style="padding: 3px 6px;"></select>
       <select style="padding: 3px 6px;"><option>正體中文</option></select>
       <button class="run-btn" onclick="gradeSubmission()">▶ 執行評測</button>
@@ -129,13 +133,28 @@
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="35%">使用者輸入 (以空白分隔)</th>
+            <th width="35%">使用者輸入 (多行/空白分隔)</th>
             <th width="20%">期望輸出</th>
             <th width="45%">範例說明</th>
           </tr>
         </thead>
         <tbody id="sampleTableBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- 👤 登入 Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content" style="width: 380px;">
+      <h3 style="text-align: center; margin-top: 0;">👤 使用者登入</h3>
+      <div class="form-group">
+        <label>請輸入您的姓名 / 暱稱：</label>
+        <input type="text" id="loginNameInput" placeholder="例如：王小明">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+        <button class="top-btn" onclick="closeLoginModal()">取消</button>
+        <button class="login-btn" onclick="performLogin()">確認登入</button>
+      </div>
     </div>
   </div>
 
@@ -169,13 +188,13 @@
       <h2 style="text-align: center; color: #333;">⚙️ 管理員控制台</h2>
       
       <div class="tab-bar" style="margin-bottom: 15px;">
-        <button class="tab-btn active" onclick="switchAdminTab('users')">👥 使用者管理與監控</button>
+        <button class="tab-btn active" onclick="switchAdminTab('users')">🟢 在線使用者監控</button>
         <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增/編輯題目</button>
       </div>
 
-      <!-- 頁籤一：線上使用者與封鎖 -->
+      <!-- 頁籤一：目前僅顯示在線使用者 -->
       <div id="adminTabUsers">
-        <h3>目前在線/歷史使用者</h3>
+        <h3>目前在線使用者 (<span id="onlineCount">0</span> 人)</h3>
         <table class="sample-table">
           <thead>
             <tr>
@@ -198,7 +217,7 @@
       <div id="adminTabAddQ" style="display:none;">
         <div class="form-group">
           <label>題目名稱：</label>
-          <input type="text" id="newTitle" placeholder="例如：臨時屋">
+          <input type="text" id="newTitle" placeholder="例如：數值加總">
         </div>
         <div class="form-group">
           <label>問題描述：</label>
@@ -209,7 +228,7 @@
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
-          <label>測試點設定 (輸入欄位請用**空白**分隔各數據，如：`50 4 30 20 15 55`)：</label>
+          <label>測試點設定 (可貼入多行與空白分隔之數據，如圖片格式)：</label>
           <div id="testCasesContainer"></div>
           <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
         </div>
@@ -285,7 +304,7 @@
 
     // ⚙️ Firebase 設定檔
     const firebaseConfig = {
-     apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
+      apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
   authDomain: "gay184184.firebaseapp.com",
   projectId: "gay184184",
   storageBucket: "gay184184.firebasestorage.app",
@@ -297,6 +316,7 @@
     let db = null;
     let isCloudEnabled = false;
     let userId = localStorage.getItem('gaydesiner_uid') || 'user_' + Math.random().toString(36).substr(2, 9);
+    let userName = localStorage.getItem('gaydesiner_uname') || '';
     localStorage.setItem('gaydesiner_uid', userId);
 
     try {
@@ -310,14 +330,16 @@
     }
 
     const defaultQuestions = [{
-      id: "q_temp_house",
-      title: "臨時屋",
-      desc: "為了在災害發生時，可以將災民快速送網收容所，防災中心定期舉行防災演習，將災民以運輸車送網收容所。",
-      detail: "收容所有多個臨時屋（至少1間，最多12間），每個臨時屋可容納人數不盡相同，當第一個臨時屋滿了以後，就開放第二個臨時屋，滿了之後再開放第三個臨時屋，依此類推。請幫防災中心統計防災演習期間共開放了幾個臨時屋。",
+      id: "q_multi_input",
+      title: "多組資料加總",
+      desc: "讀取多組包含兩個數值的資料，並計算每組數據的總和。",
+      detail: "輸入格式包含多行，每行有兩個數字，中間以空白隔開。",
       testCases: [
-        { rawInput: "50 4 30 20 15 55", expected: "2", note: "總共50人，共有4間臨時屋，容量分別為30 20 15 55。前兩間容納50人，開放2間。" },
-        { rawInput: "9 3 10 5 15", expected: "1", note: "總共9人，共有3間臨時屋。第一間即可容納9人，只開放1間。" },
-        { rawInput: "0 2 30 20", expected: "0", note: "總共0人，開放0間臨時屋。" }
+        { 
+          rawInput: "2 5\n3 9\n7 8\n4 6\n5 6", 
+          expected: "55", 
+          note: "讀入多組測資，計算所有數值的總和 (2+5+3+9+7+8+4+6+5+6 = 55)。" 
+        }
       ]
     }];
 
@@ -332,10 +354,44 @@
     function getJSGen() { return (typeof javascript !== 'undefined' && javascript.javascriptGenerator) ? javascript.javascriptGenerator : Blockly.JavaScript; }
     function getPyGen() { return (typeof python !== 'undefined' && python.pythonGenerator) ? python.pythonGenerator : Blockly.Python; }
 
-    function initUserTracker() {
-      if (!isCloudEnabled) return;
-      const userRef = db.ref('users/' + userId);
+    function updateUserNameUI() {
+      const nameSpan = document.getElementById('userDisplayName');
+      nameSpan.innerText = userName ? userName : '未登入';
+    }
+
+    function openLoginModal() {
+      document.getElementById('loginNameInput').value = userName;
+      document.getElementById('loginModal').style.display = 'flex';
+    }
+
+    function closeLoginModal() {
+      document.getElementById('loginModal').style.display = 'none';
+    }
+
+    function performLogin() {
+      const name = document.getElementById('loginNameInput').value.trim();
+      if (!name) return alert("請輸入姓名！");
+      userName = name;
+      localStorage.setItem('gaydesiner_uname', userName);
+      updateUserNameUI();
       updateOnlineStatus();
+      closeLoginModal();
+    }
+
+    function initUserTracker() {
+      updateUserNameUI();
+      if (!isCloudEnabled) return;
+
+      const userRef = db.ref('users/' + userId);
+      const connectedRef = db.ref('.info/connected');
+
+      // 利用 Firebase 特有的離線處理機制 (.info/connected + onDisconnect)
+      connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+          userRef.onDisconnect().update({ online: false });
+          updateOnlineStatus();
+        }
+      });
 
       userRef.child('isBlocked').on('value', (snapshot) => {
         const isBlocked = snapshot.val();
@@ -345,12 +401,12 @@
 
     function updateOnlineStatus() {
       if (!isCloudEnabled) return;
-      const name = document.getElementById('studentName').value.trim() || '無名氏';
       const now = new Date();
       const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
       db.ref('users/' + userId).update({
-        name: name,
+        name: userName || '未登入使用者',
+        online: true,
         lastActive: timeStr,
         timestamp: Date.now()
       });
@@ -389,23 +445,35 @@
         const tbody = document.getElementById('userListBody');
         tbody.innerHTML = '';
 
+        let onlineCount = 0;
+
         Object.keys(users).forEach(uid => {
           const u = users[uid];
-          const tr = document.createElement('tr');
-          const isBlocked = u.isBlocked || false;
+          // 關鍵離線過濾條件：只顯示 online 為 true 的使用者
+          if (u.online === true) {
+            onlineCount++;
+            const tr = document.createElement('tr');
+            const isBlocked = u.isBlocked || false;
 
-          tr.innerHTML = `
-            <td>${u.name || '無名氏'} (${uid.substr(0, 5)})</td>
-            <td>${isBlocked ? '<span style="color:red;font-weight:bold;">已封鎖</span>' : '<span style="color:green;">正常</span>'}</td>
-            <td>${u.lastActive || '未知'}</td>
-            <td>
-              <button class="top-btn" style="background:${isBlocked ? '#28a745' : '#dc3545'}; color:white; border:none;" onclick="toggleBlockUser('${uid}', ${isBlocked})">
-                ${isBlocked ? '🟢 解鎖' : '🚫 封鎖'}
-              </button>
-            </td>
-          `;
-          tbody.appendChild(tr);
+            tr.innerHTML = `
+              <td>${u.name || '無名氏'} (${uid.substr(0, 5)})</td>
+              <td><span style="color:green;font-weight:bold;">🟢 在線中</span> ${isBlocked ? '<span style="color:red;">(已封鎖)</span>' : ''}</td>
+              <td>${u.lastActive || '未知'}</td>
+              <td>
+                <button class="top-btn" style="background:${isBlocked ? '#28a745' : '#dc3545'}; color:white; border:none;" onclick="toggleBlockUser('${uid}', ${isBlocked})">
+                  ${isBlocked ? '🟢 解鎖' : '🚫 封鎖'}
+                </button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          }
         });
+
+        document.getElementById('onlineCount').innerText = onlineCount;
+
+        if (onlineCount === 0) {
+          tbody.innerHTML = '<tr><td colspan="4">目前無任何使用者在線</td></tr>';
+        }
       });
     }
 
@@ -457,9 +525,9 @@
       tbody.innerHTML = '';
       currentQuestion.testCases.forEach(tc => {
         const tr = document.createElement('tr');
-        const inputDisp = tc.rawInput ? tc.rawInput.replace(/\s+/g, ' ') : (tc.inputs ? tc.inputs.join(' ') : '');
+        const inputDisp = tc.rawInput ? tc.rawInput : (tc.inputs ? tc.inputs.join(' ') : '');
         tr.innerHTML = `
-          <td style="text-align:left; font-family: monospace;">${inputDisp}</td>
+          <td><div class="input-code-block">${inputDisp}</div></td>
           <td>${tc.expected}</td>
           <td style="text-align:left;">${(tc.note || '').replace(/\n/g, '<br>')}</td>
         `;
@@ -540,14 +608,13 @@
       }
     }
 
-    // 評測核心：支援以空白/換行拆解輸入數據
+    // 評測核心：拆解包含多行與空白分隔的文字
     function gradeSubmission() {
       if (!currentQuestion) return;
 
-      let nameInput = document.getElementById('studentName').value.trim();
-      if (!nameInput) {
-        nameInput = prompt("請輸入您的名字以紀錄成績：", "學生");
-        if (nameInput) document.getElementById('studentName').value = nameInput;
+      if (!userName) {
+        openLoginModal();
+        return;
       }
 
       const code = getJSGen().workspaceToCode(workspace);
@@ -559,7 +626,7 @@
       let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
 
       currentQuestion.testCases.forEach((tc, i) => {
-        // 將輸入字串拆解為陣列（自動相容舊版 inputs 陣列或新版 rawInput 字串）
+        // 解析多行與空白之數據
         let inputArr = [];
         if (tc.rawInput) {
           inputArr = tc.rawInput.trim().split(/\s+/);
@@ -591,7 +658,7 @@
       const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       if (isCloudEnabled) {
         db.ref('leaderboard').push({
-          name: nameInput || '無名氏',
+          name: userName || '無名氏',
           question: currentQuestion.title,
           score: totalScore,
           time: timeStr,
@@ -609,11 +676,16 @@
 
     function addTestCaseRow() {
       const div = document.createElement('div');
-      div.className = 'test-case-row';
+      div.className = 'test-case-card';
       div.innerHTML = `
-        <input type="text" placeholder="輸入數據 (空白分隔)" class="tc-in" style="flex:2;">
-        <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
-        <input type="text" placeholder="說明" class="tc-note" style="flex:2;">
+        <div class="form-group">
+          <label>輸入數據 (可貼入多行/空白分隔之內容)：</label>
+          <textarea class="tc-in" rows="3" placeholder="例如：\n2 5\n3 9\n7 8"></textarea>
+        </div>
+        <div class="test-case-row">
+          <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
+          <input type="text" placeholder="說明 (選填)" class="tc-note" style="flex:2;">
+        </div>
       `;
       document.getElementById('testCasesContainer').appendChild(div);
     }
