@@ -2,109 +2,238 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>gaydesiner - Blockly 雲端同步評測平台</title>
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <!-- Blockly 核心與轉譯器 CDN -->
   <script src="https://unpkg.com/blockly/blockly.min.js"></script>
   <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
   <script src="https://unpkg.com/blockly/python_compressed.js"></script>
   <script src="https://unpkg.com/blockly/msg/zh-hant.js"></script>
   
-  <!-- Firebase SDK (雲端同步) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: sans-serif; margin: 0; padding: 10px; background-color: #fff; font-size: 14px; }
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --secondary: #64748b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --radius: 8px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; padding: 12px; background-color: var(--bg-main); color: var(--text-main); font-size: 14px; min-height: 100vh; }
     
     /* 頂部選單 */
-    .top-menu { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 6px 12px; border: 1px solid #ccc; margin-bottom: 8px; border-radius: 4px; }
-    .brand-title { font-size: 18px; font-weight: bold; color: #333; margin-right: 15px; }
-    .btn-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    .top-btn { background: #e9ecef; border: 1px solid #adb5bd; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
-    .top-btn:hover { background: #dee2e6; }
-    .admin-btn { background: #6c757d; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
-    .admin-btn:hover { background: #5a6268; }
-    .login-btn { background: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 13px; }
-    .login-btn:hover { background: #0069d9; }
-    .del-btn { background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; }
-    .del-btn:hover { background: #bd2130; }
-    .run-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
-    .run-btn:hover { background: #bd2130; }
+    .top-menu { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      background: var(--bg-card); 
+      padding: 10px 18px; 
+      border: 1px solid var(--border-color); 
+      margin-bottom: 12px; 
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-title { 
+      font-size: 20px; 
+      font-weight: 700; 
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-right: 15px; 
+      letter-spacing: -0.5px;
+    }
+    .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    
+    /* 按鈕元件 */
+    .btn { 
+      padding: 6px 14px; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 13px; 
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: 1px solid var(--border-color);
+      background: #ffffff;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+    .btn-primary { background: var(--primary); color: white; border: none; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-admin { background: #334155; color: white; border: none; }
+    .btn-admin:hover { background: #1e293b; }
+    .btn-danger { background: var(--danger); color: white; border: none; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-run { 
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); 
+      color: white; 
+      border: none; 
+      padding: 7px 18px; 
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25);
+    }
+    .btn-run:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(239, 68, 68, 0.35); }
+
+    .select-custom {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: #fff;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .select-custom:focus { border-color: var(--primary); }
 
     /* 主區域兩欄配置 */
-    .main-wrapper { display: flex; gap: 10px; height: calc(100vh - 75px); }
+    .main-wrapper { display: flex; gap: 12px; height: calc(100vh - 85px); }
     .left-area { flex: 7; display: flex; flex-direction: column; height: 100%; min-width: 0; }
-    .right-area { flex: 3; display: flex; flex-direction: column; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 15px; overflow-y: auto; background: #fff; }
+    .right-area { 
+      flex: 3; 
+      display: flex; 
+      flex-direction: column; 
+      height: 100%; 
+      border: 1px solid var(--border-color); 
+      border-radius: var(--radius); 
+      padding: 20px; 
+      overflow-y: auto; 
+      background: var(--bg-card); 
+      box-shadow: var(--shadow-sm);
+    }
 
     /* 頁籤 Toggle */
-    .tab-bar { display: flex; gap: 4px; margin-bottom: 5px; }
-    .tab-btn { padding: 5px 15px; border: 1px solid #ccc; border-bottom: none; background: #f1f1f1; cursor: pointer; border-radius: 4px 4px 0 0; }
-    .tab-btn.active { background: white; font-weight: bold; border-top: 2px solid #007bff; }
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 8px; }
+    .tab-btn { 
+      padding: 7px 16px; 
+      border: 1px solid transparent; 
+      background: transparent; 
+      cursor: pointer; 
+      border-radius: 6px; 
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #e2e8f0; color: var(--text-main); }
+    .tab-btn.active { background: var(--bg-card); color: var(--primary); font-weight: 600; border-color: var(--border-color); box-shadow: var(--shadow-sm); }
     
     /* 編輯視窗 */
-    .editor-container { flex: 1; position: relative; border: 1px solid #ccc; }
+    .editor-container { flex: 1; position: relative; border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
     #blocklyDiv { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-    #codeDisplay { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: none; background: #272822; color: #f8f8f2; padding: 15px; margin: 0; overflow: auto; font-family: monospace; white-space: pre-wrap; }
+    #codeDisplay { 
+      width: 100%; 
+      height: 100%; 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      display: none; 
+      background: #0f172a; 
+      color: #38bdf8; 
+      padding: 18px; 
+      margin: 0; 
+      overflow: auto; 
+      font-family: 'JetBrains Mono', monospace; 
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap; 
+    }
 
     /* 右側題目說明面板樣式 */
-    .q-title { text-align: center; color: #004085; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
-    .q-section-title { font-weight: bold; text-align: center; margin: 12px 0 6px 0; }
-    .q-content { font-size: 13px; line-height: 1.6; color: #333; }
+    .q-title { text-align: center; color: var(--primary); font-size: 22px; font-weight: 700; margin-bottom: 15px; letter-spacing: -0.3px; }
+    .q-section-title { font-weight: 600; color: #334155; margin: 16px 0 8px 0; font-size: 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px; }
+    .q-content { font-size: 13px; line-height: 1.7; color: #475569; }
     
     /* 表格樣式 */
-    .sample-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-    .sample-table th, .sample-table td { border: 1px solid #000; padding: 6px; vertical-align: middle; text-align: center; }
-    .sample-table th { background-color: #f2f2f2; }
-    .input-code-block { text-align: left; font-family: monospace; white-space: pre-wrap; background: #f8f9fa; padding: 4px; border-radius: 3px; }
+    .sample-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 13px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-color); }
+    .sample-table th, .sample-table td { border-bottom: 1px solid var(--border-color); padding: 10px; vertical-align: middle; text-align: center; }
+    .sample-table th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+    .sample-table tr:last-child td { border-bottom: none; }
+    .input-code-block { text-align: left; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; background: #f1f5f9; padding: 6px 10px; border-radius: 4px; font-size: 12px; color: #0f172a; }
 
     /* Modal 視窗 */
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
-    .modal-content { background: white; padding: 20px; border-radius: 6px; width: 680px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-weight: bold; margin-bottom: 4px; }
-    .form-group input, .form-group textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-    .test-case-card { border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: #fdfdfd; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content { background: white; padding: 24px; border-radius: 12px; width: 680px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalIn 0.2s ease-out; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: #334155; font-size: 13px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); }
+    .test-case-card { border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 12px; background: #f8fafc; }
     .test-case-row { display: flex; gap: 8px; margin-bottom: 6px; }
 
-    /* 排行榜名次顏色 */
-    .rank-1 { background-color: #ffd700; font-weight: bold; }
-    .rank-2 { background-color: #c0c0c0; font-weight: bold; }
-    .rank-3 { background-color: #cd7f32; font-weight: bold; }
-    .status-badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #28a745; color: white; margin-left: 5px; }
+    /* 排行榜與燈號 */
+    .rank-1 { background-color: #fef9c3; font-weight: bold; color: #854d0e; }
+    .rank-2 { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+    .rank-3 { background-color: #ffedd5; font-weight: bold; color: #9a3412; }
+    
+    .status-badge { 
+      font-size: 11px; 
+      padding: 3px 8px; 
+      border-radius: 20px; 
+      background: #dcfce7; 
+      color: #15803d; 
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .pulse-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
 
     /* 被封鎖時的畫面遮罩 */
-    #blockScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); color: white; z-index: 99999; flex-direction: column; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; }
+    #blockScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); color: white; z-index: 99999; flex-direction: column; justify-content: center; align-items: center; font-size: 22px; font-weight: 600; }
   </style>
 </head>
 <body>
 
   <!-- 封鎖畫面覆蓋層 -->
   <div id="blockScreen">
-    <div style="font-size: 60px; margin-bottom: 20px;">⛔</div>
+    <div style="font-size: 64px; margin-bottom: 16px;">⛔</div>
     <div>您的使用權限已被管理員暫時封鎖</div>
-    <div style="font-size: 14px; color: #aaa; margin-top: 15px;">請聯繫系統管理員解鎖</div>
+    <div style="font-size: 14px; color: #94a3b8; margin-top: 12px;">請聯繫系統管理員進行解鎖</div>
   </div>
 
   <!-- 頂部選單 -->
   <div class="top-menu">
     <div class="btn-group">
       <span class="brand-title">gaydesiner</span>
-      <button class="top-btn" onclick="triggerImportXML()">開啟檔案</button>
-      <button class="top-btn" onclick="exportXML()">儲存積木檔案</button>
-      <button class="top-btn" onclick="runJavaScript()">執行JavaScript</button>
-      <button class="top-btn" onclick="gradeSubmission()">執行所有測試</button>
-      <button class="top-btn" onclick="openLeaderboardModal()">🏆 排行榜</button>
-      <button class="admin-btn" onclick="openAdminPanel()">⚙️ 管理員後台</button>
+      <button class="btn" onclick="triggerImportXML()">📂 開啟檔案</button>
+      <button class="btn" onclick="exportXML()">💾 儲存積木</button>
+      <button class="btn" onclick="runJavaScript()">⚡ 執行程式</button>
+      <button class="btn" onclick="openLeaderboardModal()">🏆 排行榜</button>
+      <button class="btn btn-admin" onclick="openAdminPanel()">⚙️ 管理後台</button>
       <input type="file" id="xmlFileInput" style="display:none" accept=".xml" onchange="importXML(event)">
     </div>
     
     <div class="btn-group">
-      <span><strong>使用者：</strong><span id="userDisplayName" style="color:#007bff; font-weight:bold;">未登入</span></span>
-      <button class="login-btn" onclick="openLoginModal()">👤 登入 / 切換身分</button>
-      <select id="questionSelect" onchange="switchQuestion()" style="padding: 3px 6px;"></select>
-      <select style="padding: 3px 6px;"><option>正體中文</option></select>
-      <button class="run-btn" onclick="gradeSubmission()">▶ 執行評測</button>
+      <span style="font-size: 13px;"><strong>使用者：</strong><span id="userDisplayName" style="color:var(--primary); font-weight:600;">未登入</span></span>
+      <button class="btn btn-primary" onclick="openLoginModal()">👤 登入 / 切換身分</button>
+      <select id="questionSelect" class="select-custom" onchange="switchQuestion()"></select>
+      <button class="btn btn-run" onclick="gradeSubmission()">▶ 執行評測</button>
     </div>
   </div>
 
@@ -112,10 +241,10 @@
   <div class="main-wrapper">
     <div class="left-area">
       <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('blocks')">積木</button>
+        <button class="tab-btn active" onclick="switchTab('blocks')">🧱 積木工作區</button>
         <button class="tab-btn" onclick="switchTab('javascript')">JavaScript</button>
         <button class="tab-btn" onclick="switchTab('python')">Python</button>
-        <button class="tab-btn" onclick="switchTab('xml')">XML</button>
+        <button class="tab-btn" onclick="switchTab('xml')">XML 代碼</button>
       </div>
       <div class="editor-container">
         <div id="blocklyDiv"></div>
@@ -125,19 +254,19 @@
 
     <div class="right-area">
       <div class="q-title" id="qTitle">載入中...</div>
-      <div class="q-section-title">問題描述</div>
+      <div class="q-section-title">📌 問題描述</div>
       <div class="q-content" id="qDesc">...</div>
       
-      <div class="q-section-title">題目說明</div>
+      <div class="q-section-title">📝 題目說明</div>
       <div class="q-content" id="qDetail">...</div>
 
-      <div class="q-section-title">範例格式</div>
+      <div class="q-section-title">💡 範例格式</div>
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="35%">使用者輸入 (多行/空白分隔)</th>
+            <th width="35%">輸入資料 (多行/空白)</th>
             <th width="20%">期望輸出</th>
-            <th width="45%">範例說明</th>
+            <th width="45%">說明</th>
           </tr>
         </thead>
         <tbody id="sampleTableBody"></tbody>
@@ -145,12 +274,12 @@
     </div>
   </div>
 
-  <!-- 👤 登入 / 註冊 Modal (含密碼驗證) -->
+  <!-- 👤 登入 / 註冊 Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content" style="width: 380px;">
-      <h3 style="text-align: center; margin-top: 0;">👤 使用者登入 / 註冊</h3>
-      <div style="font-size: 12px; color: #666; margin-bottom: 12px; text-align: center;">
-        若首次輸入姓名，系統將自動以此密碼為您註冊帳號。
+      <h3 style="text-align: center; margin-top: 0; color: var(--text-main);">👤 使用者登入 / 註冊</h3>
+      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; text-align: center; line-height: 1.5;">
+        若輸入的新姓名不存在，系統將自動以此密碼為您註冊帳號。
       </div>
       <div class="form-group">
         <label>姓名 / 暱稱：</label>
@@ -160,17 +289,20 @@
         <label>登入密碼：</label>
         <input type="password" id="loginPasswordInput" placeholder="請輸入密碼">
       </div>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
-        <button class="top-btn" onclick="closeLoginModal()">取消</button>
-        <button class="login-btn" onclick="performLogin()">確認登入</button>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+        <button class="btn" onclick="closeLoginModal()">取消</button>
+        <button class="btn btn-primary" onclick="performLogin()">確認登入</button>
       </div>
     </div>
   </div>
 
-  <!-- 🏆 排行榜 Modal (支援紀錄單筆刪除) -->
+  <!-- 🏆 排行榜 Modal -->
   <div id="leaderboardModal" class="modal">
     <div class="modal-content">
-      <h2 style="text-align: center; color: #333;">🏆 全雲端即時排行榜 <span class="status-badge">Live Sync</span></h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 style="margin:0; font-size:20px; color: var(--text-main);">🏆 即時排行榜</h2>
+        <span class="status-badge"><span class="pulse-dot"></span> Live Sync</span>
+      </div>
       <table class="sample-table">
         <thead>
           <tr>
@@ -178,7 +310,7 @@
             <th width="20%">姓名</th>
             <th width="25%">題目</th>
             <th width="15%">得分</th>
-            <th width="18%">提交時間</th>
+            <th width="18%">時間</th>
             <th width="12%">操作</th>
           </tr>
         </thead>
@@ -187,30 +319,29 @@
         </tbody>
       </table>
       <div style="text-align: right; margin-top: 20px;">
-        <button class="top-btn" onclick="closeLeaderboardModal()">關閉</button>
+        <button class="btn" onclick="closeLeaderboardModal()">關閉</button>
       </div>
     </div>
   </div>
 
-  <!-- ⚙️ 管理員控制後台 Modal -->
+  <!-- ⚙️ 管理員後台 Modal -->
   <div id="adminModal" class="modal">
     <div class="modal-content">
-      <h2 style="text-align: center; color: #333;">⚙️ 管理員控制台</h2>
+      <h2 style="margin-top:0; font-size:20px; color: var(--text-main);">⚙️ 管理員控制台</h2>
       
       <div class="tab-bar" style="margin-bottom: 15px;">
-        <button class="tab-btn active" onclick="switchAdminTab('users')">🟢 在線使用者監控</button>
-        <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增/編輯題目</button>
+        <button class="tab-btn active" onclick="switchAdminTab('users')">🟢 在線使用者</button>
+        <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增題目</button>
       </div>
 
-      <!-- 頁籤一：僅顯示在線使用者 -->
       <div id="adminTabUsers">
-        <h3>目前在線使用者 (<span id="onlineCount">0</span> 人)</h3>
+        <h3 style="font-size:15px; font-weight:600; margin-bottom:10px;">當前在線人數：<span id="onlineCount" style="color:var(--primary);">0</span> 人</h3>
         <table class="sample-table">
           <thead>
             <tr>
               <th>姓名</th>
               <th>狀態</th>
-              <th>最近在線時間</th>
+              <th>最近時間</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -218,12 +349,11 @@
             <tr><td colspan="4">載入中...</td></tr>
           </tbody>
         </table>
-        <div style="margin-top: 15px; border-top: 1px solid #ccc; padding-top: 10px;">
-          <button class="top-btn" style="background:#dc3545; color:white; border:none;" onclick="clearLeaderboard()">🗑 清空全部排行榜紀錄</button>
+        <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-danger" onclick="clearLeaderboard()">🗑 清空全部排行榜紀錄</button>
         </div>
       </div>
 
-      <!-- 頁籤二：新增題目 -->
       <div id="adminTabAddQ" style="display:none;">
         <div class="form-group">
           <label>題目名稱：</label>
@@ -234,19 +364,19 @@
           <textarea id="newDesc" rows="2"></textarea>
         </div>
         <div class="form-group">
-          <label>題目詳細說明：</label>
+          <label>詳細說明：</label>
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
-          <label>測試點設定 (可貼入多行與空白分隔之數據)：</label>
+          <label>測試點設定：</label>
           <div id="testCasesContainer"></div>
-          <button type="button" class="top-btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
+          <button type="button" class="btn" onclick="addTestCaseRow()">+ 增加一組測試點</button>
         </div>
-        <button class="top-btn" style="background:#28a745; color:white; border:none; width: 100%; margin-top: 10px;" onclick="saveNewQuestion()">儲存題目至雲端</button>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 10px;" onclick="saveNewQuestion()">儲存題目至雲端</button>
       </div>
 
       <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-        <button class="top-btn" onclick="closeAdminModal()">關閉後台</button>
+        <button class="btn" onclick="closeAdminModal()">關閉後台</button>
       </div>
     </div>
   </div>
@@ -309,10 +439,8 @@
   </xml>
 
   <script>
-    // ⚙️ 管理員高強度密碼
     const ADMIN_PASSWORD = "Admin#9ay184184!Key";
 
-    // ⚙️ Firebase 設定檔
     const firebaseConfig = {
       apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
   authDomain: "gay184184.firebaseapp.com",
@@ -336,7 +464,7 @@
         isCloudEnabled = true;
       }
     } catch(e) {
-      console.warn("Firebase 未設定或連線失敗。");
+      console.warn("Firebase 未連線。");
     }
 
     const defaultQuestions = [{
@@ -358,15 +486,16 @@
 
     const workspace = Blockly.inject('blocklyDiv', {
       toolbox: document.getElementById('toolbox'),
-      scrollbars: true
+      scrollbars: true,
+      grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
+      zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 }
     });
 
     function getJSGen() { return (typeof javascript !== 'undefined' && javascript.javascriptGenerator) ? javascript.javascriptGenerator : Blockly.JavaScript; }
     function getPyGen() { return (typeof python !== 'undefined' && python.pythonGenerator) ? python.pythonGenerator : Blockly.Python; }
 
     function updateUserNameUI() {
-      const nameSpan = document.getElementById('userDisplayName');
-      nameSpan.innerText = userName ? userName : '未登入';
+      document.getElementById('userDisplayName').innerText = userName || '未登入';
     }
 
     function openLoginModal() {
@@ -375,17 +504,13 @@
       document.getElementById('loginModal').style.display = 'flex';
     }
 
-    function closeLoginModal() {
-      document.getElementById('loginModal').style.display = 'none';
-    }
+    function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
 
-    // 含密碼驗證與自動註冊的登入邏輯
     function performLogin() {
       const name = document.getElementById('loginNameInput').value.trim();
       const pwd = document.getElementById('loginPasswordInput').value.trim();
 
-      if (!name) return alert("請輸入姓名！");
-      if (!pwd) return alert("請輸入密碼！");
+      if (!name || !pwd) return alert("請輸入完整姓名與密碼！");
 
       if (!isCloudEnabled) {
         userName = name;
@@ -395,11 +520,9 @@
         return;
       }
 
-      // 檢查使用者帳號資料庫
       const userAccountRef = db.ref('accounts/' + name);
       userAccountRef.once('value').then((snapshot) => {
         if (snapshot.exists()) {
-          // 帳號存在，比對密碼
           const storedData = snapshot.val();
           if (storedData.password === pwd) {
             userName = name;
@@ -411,21 +534,16 @@
             alert(`歡迎回來，${userName}！`);
             closeLoginModal();
           } else {
-            alert("❌ 密碼錯誤！登入失敗。");
+            alert("❌ 密碼錯誤！");
           }
         } else {
-          // 帳號不存在，進行註冊
           if (confirm(`使用者 「${name}」 尚未存在，是否以此密碼建立新帳號？`)) {
-            userAccountRef.set({
-              uid: userId,
-              password: pwd,
-              createdAt: Date.now()
-            }).then(() => {
+            userAccountRef.set({ uid: userId, password: pwd, createdAt: Date.now() }).then(() => {
               userName = name;
               localStorage.setItem('gaydesiner_uname', userName);
               updateUserNameUI();
               updateOnlineStatus();
-              alert(`🎉 帳號註冊成功！已為您登入。`);
+              alert(`🎉 帳號註冊成功！`);
               closeLoginModal();
             });
           }
@@ -438,9 +556,7 @@
       if (!isCloudEnabled) return;
 
       const userRef = db.ref('users/' + userId);
-      const connectedRef = db.ref('.info/connected');
-
-      connectedRef.on('value', (snap) => {
+      db.ref('.info/connected').on('value', (snap) => {
         if (snap.val() === true) {
           userRef.onDisconnect().update({ online: false });
           updateOnlineStatus();
@@ -448,8 +564,7 @@
       });
 
       userRef.child('isBlocked').on('value', (snapshot) => {
-        const isBlocked = snapshot.val();
-        document.getElementById('blockScreen').style.display = isBlocked ? 'flex' : 'none';
+        document.getElementById('blockScreen').style.display = snapshot.val() ? 'flex' : 'none';
       });
     }
 
@@ -467,38 +582,29 @@
     }
 
     function openAdminPanel() {
-      const pwd = prompt("🔐 請輸入高強度管理員密碼：");
+      const pwd = prompt("🔐 請輸入管理員密碼：");
       if (pwd === ADMIN_PASSWORD) {
         document.getElementById('adminModal').style.display = 'flex';
         loadAdminUsers();
       } else if (pwd !== null) {
-        alert("❌ 密碼錯誤！存取被拒絕。");
+        alert("❌ 密碼錯誤！");
       }
     }
 
-    function closeAdminModal() {
-      document.getElementById('adminModal').style.display = 'none';
-    }
+    function closeAdminModal() { document.getElementById('adminModal').style.display = 'none'; }
 
     function switchAdminTab(tab) {
       document.getElementById('adminTabUsers').style.display = tab === 'users' ? 'block' : 'none';
       document.getElementById('adminTabAddQ').style.display = tab === 'addQ' ? 'block' : 'none';
-      if (tab === 'addQ' && document.getElementById('testCasesContainer').children.length === 0) {
-        addTestCaseRow();
-      }
+      if (tab === 'addQ' && document.getElementById('testCasesContainer').children.length === 0) addTestCaseRow();
     }
 
     function loadAdminUsers() {
-      if (!isCloudEnabled) {
-        document.getElementById('userListBody').innerHTML = '<tr><td colspan="4">未啟動 Firebase 雲端模式</td></tr>';
-        return;
-      }
-
+      if (!isCloudEnabled) return;
       db.ref('users').on('value', (snapshot) => {
         const users = snapshot.val() || {};
         const tbody = document.getElementById('userListBody');
         tbody.innerHTML = '';
-
         let onlineCount = 0;
 
         Object.keys(users).forEach(uid => {
@@ -507,13 +613,12 @@
             onlineCount++;
             const tr = document.createElement('tr');
             const isBlocked = u.isBlocked || false;
-
             tr.innerHTML = `
-              <td>${u.name || '無名氏'} (${uid.substr(0, 5)})</td>
-              <td><span style="color:green;font-weight:bold;">🟢 在線中</span> ${isBlocked ? '<span style="color:red;">(已封鎖)</span>' : ''}</td>
+              <td><strong>${u.name || '無名氏'}</strong></td>
+              <td><span class="status-badge"><span class="pulse-dot"></span>在線中</span> ${isBlocked ? '<span style="color:var(--danger); font-weight:600;">(已封鎖)</span>' : ''}</td>
               <td>${u.lastActive || '未知'}</td>
               <td>
-                <button class="top-btn" style="background:${isBlocked ? '#28a745' : '#dc3545'}; color:white; border:none;" onclick="toggleBlockUser('${uid}', ${isBlocked})">
+                <button class="btn ${isBlocked ? 'btn-primary' : 'btn-danger'}" style="padding: 2px 8px; font-size:11px;" onclick="toggleBlockUser('${uid}', ${isBlocked})">
                   ${isBlocked ? '🟢 解鎖' : '🚫 封鎖'}
                 </button>
               </td>
@@ -521,19 +626,13 @@
             tbody.appendChild(tr);
           }
         });
-
         document.getElementById('onlineCount').innerText = onlineCount;
-
-        if (onlineCount === 0) {
-          tbody.innerHTML = '<tr><td colspan="4">目前無任何使用者在線</td></tr>';
-        }
+        if (onlineCount === 0) tbody.innerHTML = '<tr><td colspan="4">目前無使用者在線</td></tr>';
       });
     }
 
     function toggleBlockUser(uid, currentStatus) {
-      if (isCloudEnabled) {
-        db.ref('users/' + uid).update({ isBlocked: !currentStatus });
-      }
+      if (isCloudEnabled) db.ref('users/' + uid).update({ isBlocked: !currentStatus });
     }
 
     function initQuestions() {
@@ -562,9 +661,7 @@
       });
     }
 
-    function switchQuestion() {
-      loadQuestion(document.getElementById('questionSelect').value);
-    }
+    function switchQuestion() { loadQuestion(document.getElementById('questionSelect').value); }
 
     function loadQuestion(qId) {
       currentQuestion = questions.find(q => q.id === qId) || questions[0];
@@ -581,7 +678,7 @@
         const inputDisp = tc.rawInput ? tc.rawInput : (tc.inputs ? tc.inputs.join(' ') : '');
         tr.innerHTML = `
           <td><div class="input-code-block">${inputDisp}</div></td>
-          <td>${tc.expected}</td>
+          <td><strong>${tc.expected}</strong></td>
           <td style="text-align:left;">${(tc.note || '').replace(/\n/g, '<br>')}</td>
         `;
         tbody.appendChild(tr);
@@ -589,7 +686,7 @@
     }
 
     function switchTab(tab) {
-      document.querySelectorAll('.tab-bar .tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.left-area .tab-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
 
       const blocklyDiv = document.getElementById('blocklyDiv');
@@ -617,26 +714,20 @@
       renderLeaderboard();
     }
 
-    function closeLeaderboardModal() {
-      document.getElementById('leaderboardModal').style.display = 'none';
-    }
+    function closeLeaderboardModal() { document.getElementById('leaderboardModal').style.display = 'none'; }
 
     function renderLeaderboard() {
       if (isCloudEnabled) {
         db.ref('leaderboard').on('value', (snapshot) => {
-          const rawData = snapshot.val() || {};
-          displayLeaderboardData(rawData);
+          displayLeaderboardData(snapshot.val() || {});
         });
       }
     }
 
     function displayLeaderboardData(rawData) {
-      const list = Object.keys(rawData).map(key => ({
-        key: key,
-        ...rawData[key]
-      }));
-
+      const list = Object.keys(rawData).map(key => ({ key, ...rawData[key] }));
       list.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
+      
       const tbody = document.getElementById('leaderboardBody');
       tbody.innerHTML = '';
 
@@ -650,58 +741,41 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="${rank <= 3 ? 'rank-' + rank : ''}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}</td>
-          <td>${item.name}</td>
+          <td><strong>${item.name}</strong></td>
           <td>${item.question}</td>
-          <td><strong>${item.score} 分</strong></td>
-          <td>${item.time}</td>
-          <td><button class="del-btn" onclick="deleteRecord('${item.key}')">🗑 刪除</button></td>
+          <td><span style="color:var(--primary); font-weight:700;">${item.score} 分</span></td>
+          <td style="color:var(--text-muted); font-size:12px;">${item.time}</td>
+          <td><button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteRecord('${item.key}')">🗑 刪除</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    // 單筆紀錄刪除功能
     function deleteRecord(recordKey) {
-      if (confirm("確定要刪除這筆成績紀錄嗎？")) {
-        if (isCloudEnabled) {
-          db.ref('leaderboard/' + recordKey).remove().then(() => {
-            alert("該筆紀錄已刪除！");
-          });
-        }
+      if (confirm("確定要刪除這筆成績紀錄嗎？") && isCloudEnabled) {
+        db.ref('leaderboard/' + recordKey).remove();
       }
     }
 
     function clearLeaderboard() {
-      if (confirm("確定要清空全站所有排行榜紀錄嗎？")) {
-        if (isCloudEnabled) db.ref('leaderboard').remove();
-        alert("排行榜已完全清空！");
+      if (confirm("確定要清空全站排行榜紀錄嗎？") && isCloudEnabled) {
+        db.ref('leaderboard').remove();
       }
     }
 
     function gradeSubmission() {
       if (!currentQuestion) return;
-
-      if (!userName) {
-        openLoginModal();
-        return;
-      }
+      if (!userName) return openLoginModal();
 
       const code = getJSGen().workspaceToCode(workspace);
       let passed = 0;
-
       const origPrompt = window.prompt;
       const origAlert = window.alert;
 
       let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
 
       currentQuestion.testCases.forEach((tc, i) => {
-        let inputArr = [];
-        if (tc.rawInput) {
-          inputArr = tc.rawInput.trim().split(/\s+/);
-        } else if (tc.inputs) {
-          inputArr = tc.inputs.flatMap(s => String(s).trim().split(/\s+/));
-        }
-
+        let inputArr = tc.rawInput ? tc.rawInput.trim().split(/\s+/) : (tc.inputs ? tc.inputs.flatMap(s => String(s).trim().split(/\s+/)) : []);
         let ptr = 0;
         let outputs = [];
         window.prompt = () => inputArr[ptr++] || "0";
@@ -711,7 +785,7 @@
           new Function(code)();
           const isOk = outputs.some(out => out === String(tc.expected).trim() || Number(out) === Number(tc.expected));
           if (isOk) passed++;
-          resultMsg += `測試點 #${i+1}: ${isOk ? '✅ 通過' : '❌ 失敗'} (實際輸出: ${outputs.join(', ') || '無'})\n`;
+          resultMsg += `測試點 #${i+1}: ${isOk ? '✅ 通過' : '❌ 失敗'} (輸出: ${outputs.join(', ') || '無'})\n`;
         } catch(e) {
           resultMsg += `測試點 #${i+1}: 💥 執行錯誤 (${e.message})\n`;
         }
@@ -721,12 +795,12 @@
       window.alert = origAlert;
 
       const totalScore = Math.round((passed / currentQuestion.testCases.length) * 100);
-      
       const now = new Date();
       const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      
       if (isCloudEnabled) {
         db.ref('leaderboard').push({
-          name: userName || '無名氏',
+          name: userName,
           question: currentQuestion.title,
           score: totalScore,
           time: timeStr,
@@ -734,7 +808,7 @@
         });
       }
 
-      alert(`${resultMsg}\n總得分: ${totalScore} 分\n（成績已即時同步至雲端排行榜）`);
+      alert(`${resultMsg}\n總得分: ${totalScore} 分\n（成績已上傳至雲端排行榜）`);
     }
 
     function runJavaScript() {
@@ -747,8 +821,8 @@
       div.className = 'test-case-card';
       div.innerHTML = `
         <div class="form-group">
-          <label>輸入數據 (可貼入多行/空白分隔之內容)：</label>
-          <textarea class="tc-in" rows="3" placeholder="例如：\n2 5\n3 9\n7 8"></textarea>
+          <label>輸入數據：</label>
+          <textarea class="tc-in" rows="2" placeholder="例如：\n2 5\n3 9"></textarea>
         </div>
         <div class="test-case-row">
           <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
@@ -785,11 +859,8 @@
         testCases: testCases
       };
 
-      if (isCloudEnabled) {
-        db.ref('questions/' + newQ.id).set(newQ);
-      }
-
-      alert("題目已成功儲存至雲端！");
+      if (isCloudEnabled) db.ref('questions/' + newQ.id).set(newQ);
+      alert("題目已儲存！");
       closeAdminModal();
     }
 
