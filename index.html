@@ -188,7 +188,7 @@
 
     /* Modal 視窗 */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 2000; }
-    .modal-content { background: white; padding: 24px; border-radius: 12px; width: 680px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalIn 0.2s ease-out; }
+    .modal-content { background: white; padding: 24px; border-radius: 12px; width: 780px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalIn 0.2s ease-out; }
     @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 
     .form-group { margin-bottom: 14px; }
@@ -198,7 +198,7 @@
     .test-case-card { border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 12px; background: #f8fafc; }
     .test-case-row { display: flex; gap: 8px; margin-bottom: 6px; }
 
-    /* 排行榜與燈號 */
+    /* 排行榜標籤 */
     .rank-1 { background-color: #fef9c3; font-weight: bold; color: #854d0e; }
     .rank-2 { background-color: #f1f5f9; font-weight: bold; color: #475569; }
     .rank-3 { background-color: #ffedd5; font-weight: bold; color: #9a3412; }
@@ -217,27 +217,24 @@
     .pulse-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulse 1.6s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
 
-    /* 被封鎖時的畫面遮罩 */
     #blockScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); color: white; z-index: 99999; flex-direction: column; justify-content: center; align-items: center; font-size: 22px; font-weight: 600; }
   </style>
 </head>
 <body>
 
-  <!-- 封鎖畫面覆蓋層 -->
   <div id="blockScreen">
     <div style="font-size: 64px; margin-bottom: 16px;">⛔</div>
     <div>您的使用權限已被管理員暫時封鎖</div>
     <div style="font-size: 14px; color: #94a3b8; margin-top: 12px;">請聯繫系統管理員進行解鎖</div>
   </div>
 
-  <!-- 頂部選單 -->
   <div class="top-menu">
     <div class="btn-group">
       <span class="brand-title">willydesiner</span>
       <button class="btn" onclick="triggerImportXML()">📂 開啟檔案</button>
       <button class="btn" onclick="exportXML()">💾 儲存積木</button>
       <button class="btn" onclick="runJavaScript()">⚡ 執行程式</button>
-      <button class="btn" onclick="openLeaderboardModal()">🏆 排行榜</button>
+      <button class="btn" onclick="openLeaderboardModal()">🏆 多維度排行榜</button>
       <button class="btn btn-admin" onclick="openAdminPanel()">⚙️ 管理後台</button>
       <input type="file" id="xmlFileInput" style="display:none" accept=".xml" onchange="importXML(event)">
     </div>
@@ -250,7 +247,6 @@
     </div>
   </div>
 
-  <!-- 主區域兩欄配置 -->
   <div class="main-wrapper">
     <div class="left-area">
       <div class="tab-bar">
@@ -277,7 +273,7 @@
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="35%">輸入資料 (多行/空白)</th>
+            <th width="35%">輸入資料</th>
             <th width="20%">期望輸出</th>
             <th width="45%">說明</th>
           </tr>
@@ -291,9 +287,6 @@
   <div id="loginModal" class="modal">
     <div class="modal-content" style="width: 380px;">
       <h3 style="text-align: center; margin-top: 0; color: var(--text-main);">👤 使用者登入 / 註冊</h3>
-      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; text-align: center; line-height: 1.5;">
-        若輸入的新姓名不存在，系統將自動以此密碼為您註冊帳號。
-      </div>
       <div class="form-group">
         <label>姓名 / 暱稱：</label>
         <input type="text" id="loginNameInput" placeholder="例如：王小明">
@@ -309,26 +302,30 @@
     </div>
   </div>
 
-  <!-- 🏆 排行榜 Modal -->
+  <!-- 🏆 多維度防刷分排行榜 Modal -->
   <div id="leaderboardModal" class="modal">
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2 style="margin:0; font-size:20px; color: var(--text-main);">🏆 即時排行榜</h2>
+        <div>
+          <h2 style="margin:0; font-size:20px; color: var(--text-main);">🏆 多維度防刷分排行榜</h2>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">比序規則：總分最高 ➔ 耗時最少 ➔ 積木數量最少（精簡程式）</div>
+        </div>
         <span class="status-badge"><span class="pulse-dot"></span> Live Sync</span>
       </div>
       <table class="sample-table">
         <thead>
           <tr>
-            <th width="10%">名次</th>
-            <th width="20%">姓名</th>
-            <th width="25%">題目</th>
-            <th width="15%">得分</th>
-            <th width="18%">時間</th>
-            <th width="12%">操作</th>
+            <th width="8%">名次</th>
+            <th width="18%">姓名</th>
+            <th width="22%">題目</th>
+            <th width="12%">得分</th>
+            <th width="14%">耗時 (ms)</th>
+            <th width="12%">積木數</th>
+            <th width="14%">操作</th>
           </tr>
         </thead>
         <tbody id="leaderboardBody">
-          <tr><td colspan="6">資料同步中...</td></tr>
+          <tr><td colspan="7">資料同步中...</td></tr>
         </tbody>
       </table>
       <div style="text-align: right; margin-top: 20px;">
@@ -344,40 +341,51 @@
       
       <div class="tab-bar" style="margin-bottom: 15px;">
         <button class="tab-btn active" onclick="switchAdminTab('users')">🟢 在線使用者</button>
+        <button class="tab-btn" onclick="switchAdminTab('questions')">📚 題目管理</button>
         <button class="tab-btn" onclick="switchAdminTab('addQ')">➕ 新增題目</button>
       </div>
 
+      <!-- 頁籤一：在線使用者 -->
       <div id="adminTabUsers">
         <h3 style="font-size:15px; font-weight:600; margin-bottom:10px;">當前在線人數：<span id="onlineCount" style="color:var(--primary);">0</span> 人</h3>
         <table class="sample-table">
           <thead>
-            <tr>
-              <th>姓名</th>
-              <th>狀態</th>
-              <th>最近時間</th>
-              <th>操作</th>
-            </tr>
+            <tr><th>姓名</th><th>狀態</th><th>最近時間</th><th>操作</th></tr>
           </thead>
-          <tbody id="userListBody">
-            <tr><td colspan="4">載入中...</td></tr>
-          </tbody>
+          <tbody id="userListBody"><tr><td colspan="4">載入中...</td></tr></tbody>
         </table>
         <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 12px;">
           <button class="btn btn-danger" onclick="clearLeaderboard()">🗑 清空全部排行榜紀錄</button>
         </div>
       </div>
 
+      <!-- 頁籤二：題目管理 (刪減) -->
+      <div id="adminTabQuestions" style="display:none;">
+        <h3 style="font-size:15px; font-weight:600; margin-bottom:10px;">現有題目列表</h3>
+        <table class="sample-table">
+          <thead>
+            <tr>
+              <th width="30%">題目ID / 名稱</th>
+              <th width="45%">描述</th>
+              <th width="25%">操作</th>
+            </tr>
+          </thead>
+          <tbody id="adminQListBody"><tr><td colspan="3">載入中...</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- 頁籤三：新增題目 -->
       <div id="adminTabAddQ" style="display:none;">
         <div class="form-group">
           <label>題目名稱：</label>
-          <input type="text" id="newTitle" placeholder="例如：畢氏定理與分數計算">
+          <input type="text" id="newTitle" placeholder="例如：畢氏定理與斜邊計算">
         </div>
         <div class="form-group">
-          <label>問題描述 (支援 LaTeX 數學式，如 $a^2+b^2=c^2$)：</label>
+          <label>問題描述 (支援 LaTeX)：</label>
           <textarea id="newDesc" rows="2"></textarea>
         </div>
         <div class="form-group">
-          <label>詳細說明 (支援大公式，如 $$\\frac{a}{b}$$)：</label>
+          <label>詳細說明 (支援 LaTeX)：</label>
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
@@ -394,7 +402,7 @@
     </div>
   </div>
 
-  <!-- 工具箱配置 -->
+  <!-- Blockly 工具箱 -->
   <xml id="toolbox" style="display: none">
     <category name="專用" colour="#ff0000">
       <block type="text_print"></block>
@@ -480,7 +488,6 @@
       console.warn("Firebase 未連線。");
     }
 
-    // 預設題目：示範專業數學公式 LaTeX 渲染
     const defaultQuestions = [
       {
         id: "q_math_pythagoras",
@@ -612,6 +619,7 @@
       if (pwd === ADMIN_PASSWORD) {
         document.getElementById('adminModal').style.display = 'flex';
         loadAdminUsers();
+        loadAdminQuestions();
       } else if (pwd !== null) {
         alert("❌ 密碼錯誤！");
       }
@@ -621,6 +629,7 @@
 
     function switchAdminTab(tab) {
       document.getElementById('adminTabUsers').style.display = tab === 'users' ? 'block' : 'none';
+      document.getElementById('adminTabQuestions').style.display = tab === 'questions' ? 'block' : 'none';
       document.getElementById('adminTabAddQ').style.display = tab === 'addQ' ? 'block' : 'none';
       if (tab === 'addQ' && document.getElementById('testCasesContainer').children.length === 0) addTestCaseRow();
     }
@@ -657,6 +666,38 @@
       });
     }
 
+    function loadAdminQuestions() {
+      const tbody = document.getElementById('adminQListBody');
+      tbody.innerHTML = '';
+      questions.forEach(q => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${q.title}</strong><br><span style="font-size:11px; color:var(--text-muted);">${q.id}</span></td>
+          <td style="text-align:left; font-size:12px;">${q.desc.substring(0, 40)}...</td>
+          <td>
+            <button class="btn btn-danger" style="padding:3px 8px; font-size:11px;" onclick="deleteQuestion('${q.id}')">🗑 刪除題目</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function deleteQuestion(qId) {
+      if (confirm(`確定要刪除題目 (ID: ${qId}) 嗎？此操作不可逆！`)) {
+        if (isCloudEnabled) {
+          db.ref('questions/' + qId).remove().then(() => {
+            alert("題目已刪除！");
+          });
+        } else {
+          questions = questions.filter(q => q.id !== qId);
+          renderSelectOptions();
+          if (questions.length > 0) loadQuestion(questions[0].id);
+          loadAdminQuestions();
+          alert("預設題目已刪除（本地）。");
+        }
+      }
+    }
+
     function toggleBlockUser(uid, currentStatus) {
       if (isCloudEnabled) db.ref('users/' + uid).update({ isBlocked: !currentStatus });
     }
@@ -667,7 +708,7 @@
           const data = snapshot.val();
           questions = data ? Object.values(data) : defaultQuestions;
           renderSelectOptions();
-          loadQuestion(questions[0].id);
+          if (questions.length > 0) loadQuestion(questions[0].id);
         });
       } else {
         questions = defaultQuestions;
@@ -710,7 +751,6 @@
         tbody.appendChild(tr);
       });
 
-      // 🔄 重新觸發 MathJax 渲染頁面上的 LaTeX 數學公式
       if (window.MathJax && window.MathJax.typesetPromise) {
         MathJax.typesetPromise();
       }
@@ -755,15 +795,21 @@
       }
     }
 
+    /* 🏆 多維度比序邏輯：總分高 ➔ 耗時低 ➔ 積木數低 */
     function displayLeaderboardData(rawData) {
       const list = Object.keys(rawData).map(key => ({ key, ...rawData[key] }));
-      list.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
       
+      list.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.execTime !== b.execTime) return (a.execTime || 9999) - (b.execTime || 9999);
+        return (a.blockCount || 9999) - (b.blockCount || 9999);
+      });
+
       const tbody = document.getElementById('leaderboardBody');
       tbody.innerHTML = '';
 
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6">目前尚無成績紀錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7">目前尚無成績紀錄</td></tr>';
         return;
       }
 
@@ -775,7 +821,8 @@
           <td><strong>${item.name}</strong></td>
           <td>${item.question}</td>
           <td><span style="color:var(--primary); font-weight:700;">${item.score} 分</span></td>
-          <td style="color:var(--text-muted); font-size:12px;">${item.time}</td>
+          <td><span style="color:#0284c7; font-weight:600;">${item.execTime ? item.execTime.toFixed(1) : '-'} ms</span></td>
+          <td><span style="color:#7c3aed; font-weight:600;">${item.blockCount || '-'} 個</span></td>
           <td><button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteRecord('${item.key}')">🗑 刪除</button></td>
         `;
         tbody.appendChild(tr);
@@ -794,7 +841,7 @@
       }
     }
 
-    /* 🛡️ Web Worker 防死迴圈 / 逾時隔離評測核心引擎 */
+    /* 🛡️ Web Worker 評測引擎 (精確計算微秒毫秒級耗時) */
     function executeCodeInWorker(code, inputQueue, timeoutMs = 2500) {
       return new Promise((resolve) => {
         const workerCode = `
@@ -804,20 +851,18 @@
             const outputs = [];
             
             const window = {
-              prompt: function() {
-                return (ptr < inputs.length) ? inputs[ptr++] : "0";
-              },
-              alert: function(msg) {
-                outputs.push(String(msg).trim());
-              }
+              prompt: function() { return (ptr < inputs.length) ? inputs[ptr++] : "0"; },
+              alert: function(msg) { outputs.push(String(msg).trim()); }
             };
             const prompt = window.prompt;
             const alert = window.alert;
 
+            const startTime = performance.now();
             try {
               const runUserCode = new Function('window', 'prompt', 'alert', e.data.code);
               runUserCode(window, prompt, alert);
-              self.postMessage({ success: true, outputs: outputs });
+              const endTime = performance.now();
+              self.postMessage({ success: true, outputs: outputs, execTime: (endTime - startTime) });
             } catch(err) {
               self.postMessage({ success: false, error: err.message });
             }
@@ -851,7 +896,9 @@
       btnGrade.innerText = "⏳ 評測中...";
 
       const code = getJSGen().workspaceToCode(workspace);
+      const blockCount = workspace.getAllBlocks(false).length; // 統計積木總數量
       let passed = 0;
+      let totalExecTime = 0;
       let resultMsg = `題目：${currentQuestion.title}\n------------------------\n`;
 
       for (let i = 0; i < currentQuestion.testCases.length; i++) {
@@ -863,10 +910,11 @@
         if (res.timeout) {
           resultMsg += `測試點 #${i+1}: 💥 ${res.error}\n`;
         } else if (res.success) {
+          totalExecTime += (res.execTime || 0);
           const outputs = res.outputs || [];
           const isOk = outputs.some(out => out === String(tc.expected).trim() || Number(out) === Number(tc.expected));
           if (isOk) passed++;
-          resultMsg += `測試點 #${i+1}: ${isOk ? '✅ 通過' : '❌ 失敗'} (輸出: ${outputs.join(', ') || '無'})\n`;
+          resultMsg += `測試點 #${i+1}: ${isOk ? '✅ 通過' : '❌ 失敗'} (耗時: ${(res.execTime || 0).toFixed(1)}ms)\n`;
         } else {
           resultMsg += `測試點 #${i+1}: 💥 執行錯誤 (${res.error})\n`;
         }
@@ -876,20 +924,44 @@
       const now = new Date();
       const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       
+      // 🛡️ 防刷分排行榜最佳成績覆蓋機制
       if (isCloudEnabled) {
-        db.ref('leaderboard').push({
-          name: userName,
-          question: currentQuestion.title,
-          score: totalScore,
-          time: timeStr,
-          timestamp: Date.now()
+        const lbRef = db.ref('leaderboard');
+        const scoreKey = `${userName}_${currentQuestion.id}`.replace(/[.#$\[\]]/g, "_");
+
+        lbRef.child(scoreKey).once('value').then(snapshot => {
+          const oldData = snapshot.val();
+          let shouldUpdate = false;
+
+          if (!oldData) {
+            shouldUpdate = true;
+          } else if (totalScore > oldData.score) {
+            shouldUpdate = true;
+          } else if (totalScore === oldData.score) {
+            // 同分時：耗時更少或積木更少才覆蓋舊紀錄
+            if (totalExecTime < (oldData.execTime || 9999) || blockCount < (oldData.blockCount || 9999)) {
+              shouldUpdate = true;
+            }
+          }
+
+          if (shouldUpdate) {
+            lbRef.child(scoreKey).set({
+              name: userName,
+              question: currentQuestion.title,
+              score: totalScore,
+              execTime: totalExecTime,
+              blockCount: blockCount,
+              time: timeStr,
+              timestamp: Date.now()
+            });
+          }
         });
       }
 
       btnGrade.disabled = false;
       btnGrade.innerText = "▶ 執行評測";
 
-      alert(`${resultMsg}\n總得分: ${totalScore} 分\n（成績已上傳至雲端排行榜）`);
+      alert(`${resultMsg}\n總得分: ${totalScore} 分\n總執行耗時: ${totalExecTime.toFixed(1)} ms\n使用積木數: ${blockCount} 個\n（最佳成績已同步更新至排行榜）`);
     }
 
     async function runJavaScript() {
