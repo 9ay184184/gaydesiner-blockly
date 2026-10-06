@@ -1,16 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']], // 支援 $...$ 或 \(...\) 當作行內公式
-      displayMath: [['$$', '$$'], ['\\[', '\\]']] // 支援 $$...$$ 當作獨立大公式
-    },
-    svg: { fontCache: 'global' }
-  };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>willydesiner - Blockly 雲端同步評測平台</title>
@@ -29,6 +19,18 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- MathJax 3.0 (LaTeX 專業數學公式渲染) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
   <style>
     :root {
@@ -368,14 +370,14 @@
       <div id="adminTabAddQ" style="display:none;">
         <div class="form-group">
           <label>題目名稱：</label>
-          <input type="text" id="newTitle" placeholder="例如：數值加總">
+          <input type="text" id="newTitle" placeholder="例如：畢氏定理與分數計算">
         </div>
         <div class="form-group">
-          <label>問題描述：</label>
+          <label>問題描述 (支援 LaTeX 數學式，如 $a^2+b^2=c^2$)：</label>
           <textarea id="newDesc" rows="2"></textarea>
         </div>
         <div class="form-group">
-          <label>詳細說明：</label>
+          <label>詳細說明 (支援大公式，如 $$\\frac{a}{b}$$)：</label>
           <textarea id="newDetail" rows="3"></textarea>
         </div>
         <div class="form-group">
@@ -453,7 +455,7 @@
     const ADMIN_PASSWORD = "Admin#9ay184184!Key";
 
     const firebaseConfig = {
-     apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
+      apiKey: "AIzaSyCRH40ZJTAyZyGQEneE0FH9mb2RDKNutBs",
   authDomain: "gay184184.firebaseapp.com",
   projectId: "gay184184",
   storageBucket: "gay184184.firebasestorage.app",
@@ -464,9 +466,9 @@
 
     let db = null;
     let isCloudEnabled = false;
-    let userId = localStorage.getItem('gaydesiner_uid') || 'user_' + Math.random().toString(36).substr(2, 9);
-    let userName = localStorage.getItem('gaydesiner_uname') || '';
-    localStorage.setItem('gaydesiner_uid', userId);
+    let userId = localStorage.getItem('willydesiner_uid') || 'user_' + Math.random().toString(36).substr(2, 9);
+    let userName = localStorage.getItem('willydesiner_uname') || '';
+    localStorage.setItem('willydesiner_uid', userId);
 
     try {
       if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
@@ -478,19 +480,32 @@
       console.warn("Firebase 未連線。");
     }
 
-    const defaultQuestions = [{
-      id: "q_multi_input",
-      title: "多組資料加總",
-      desc: "讀取多組包含兩個數值的資料，並計算每組數據的總和。",
-      detail: "輸入格式包含多行，每行有兩個數字，中間以空白隔開。",
-      testCases: [
-        { 
-          rawInput: "2 5\n3 9\n7 8\n4 6\n5 6", 
-          expected: "55", 
-          note: "讀入多組測資，計算所有數值的總和 (2+5+3+9+7+8+4+6+5+6 = 55)。" 
-        }
-      ]
-    }];
+    // 預設題目：示範專業數學公式 LaTeX 渲染
+    const defaultQuestions = [
+      {
+        id: "q_math_pythagoras",
+        title: "畢氏定理與斜邊計算",
+        desc: "給定直角三角形的兩股長 $a$ 與 $b$，求斜邊長 $c = \\sqrt{a^2 + b^2}$。",
+        detail: "畢氏定理關係式為：$$c = \\sqrt{a^2 + b^2}$$請將計算出的斜邊長結果輸出。",
+        testCases: [
+          { rawInput: "3 4", expected: "5", note: "當 $a=3, b=4$ 時，$c=\\sqrt{3^2+4^2}=5$" },
+          { rawInput: "5 12", expected: "13", note: "當 $a=5, b=12$ 時，$c=\\sqrt{5^2+12^2}=13$" }
+        ]
+      },
+      {
+        id: "q_multi_input",
+        title: "多組資料加總",
+        desc: "讀取多組包含兩個數值的資料，並計算每組數據的總和 $\\sum_{i=1}^n x_i$。",
+        detail: "輸入格式包含多行，每行有兩個數字，中間以空白隔開。",
+        testCases: [
+          { 
+            rawInput: "2 5\n3 9\n7 8\n4 6\n5 6", 
+            expected: "55", 
+            note: "讀入多組測資，計算總和 $\\sum = 2+5+3+9+7+8+4+6+5+6 = 55$。" 
+          }
+        ]
+      }
+    ];
 
     let questions = [];
     let currentQuestion = null;
@@ -525,7 +540,7 @@
 
       if (!isCloudEnabled) {
         userName = name;
-        localStorage.setItem('gaydesiner_uname', userName);
+        localStorage.setItem('willydesiner_uname', userName);
         updateUserNameUI();
         closeLoginModal();
         return;
@@ -538,8 +553,8 @@
           if (storedData.password === pwd) {
             userName = name;
             userId = storedData.uid || userId;
-            localStorage.setItem('gaydesiner_uname', userName);
-            localStorage.setItem('gaydesiner_uid', userId);
+            localStorage.setItem('willydesiner_uname', userName);
+            localStorage.setItem('willydesiner_uid', userId);
             updateUserNameUI();
             updateOnlineStatus();
             alert(`歡迎回來，${userName}！`);
@@ -551,7 +566,7 @@
           if (confirm(`使用者 「${name}」 尚未存在，是否以此密碼建立新帳號？`)) {
             userAccountRef.set({ uid: userId, password: pwd, createdAt: Date.now() }).then(() => {
               userName = name;
-              localStorage.setItem('gaydesiner_uname', userName);
+              localStorage.setItem('willydesiner_uname', userName);
               updateUserNameUI();
               updateOnlineStatus();
               alert(`🎉 帳號註冊成功！`);
@@ -679,8 +694,8 @@
       if (!currentQuestion) return;
 
       document.getElementById('qTitle').innerText = currentQuestion.title;
-      document.getElementById('qDesc').innerText = currentQuestion.desc;
-      document.getElementById('qDetail').innerText = currentQuestion.detail;
+      document.getElementById('qDesc').innerHTML = currentQuestion.desc;
+      document.getElementById('qDetail').innerHTML = currentQuestion.detail;
 
       const tbody = document.getElementById('sampleTableBody');
       tbody.innerHTML = '';
@@ -694,6 +709,11 @@
         `;
         tbody.appendChild(tr);
       });
+
+      // 🔄 重新觸發 MathJax 渲染頁面上的 LaTeX 數學公式
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise();
+      }
     }
 
     function switchTab(tab) {
@@ -774,9 +794,7 @@
       }
     }
 
-    /* -------------------------------------------------------------
-       🛡️ Web Worker 防死迴圈 / 逾時隔離評測核心引擎
-    ------------------------------------------------------------- */
+    /* 🛡️ Web Worker 防死迴圈 / 逾時隔離評測核心引擎 */
     function executeCodeInWorker(code, inputQueue, timeoutMs = 2500) {
       return new Promise((resolve) => {
         const workerCode = `
@@ -785,7 +803,6 @@
             let ptr = 0;
             const outputs = [];
             
-            // 模擬 prompt & alert
             const window = {
               prompt: function() {
                 return (ptr < inputs.length) ? inputs[ptr++] : "0";
@@ -841,7 +858,6 @@
         const tc = currentQuestion.testCases[i];
         let inputArr = tc.rawInput ? tc.rawInput.trim().split(/\s+/) : (tc.inputs ? tc.inputs.flatMap(s => String(s).trim().split(/\s+/)) : []);
         
-        // 使用 Worker 進行背景沙盒測試
         const res = await executeCodeInWorker(code, inputArr, 2500);
 
         if (res.timeout) {
@@ -896,11 +912,11 @@
       div.innerHTML = `
         <div class="form-group">
           <label>輸入數據：</label>
-          <textarea class="tc-in" rows="2" placeholder="例如：\n2 5\n3 9"></textarea>
+          <textarea class="tc-in" rows="2" placeholder="例如：\n3 4"></textarea>
         </div>
         <div class="test-case-row">
           <input type="text" placeholder="期望輸出" class="tc-out" style="flex:1;">
-          <input type="text" placeholder="說明 (選填)" class="tc-note" style="flex:2;">
+          <input type="text" placeholder="說明 (支援 LaTeX)" class="tc-note" style="flex:2;">
         </div>
       `;
       document.getElementById('testCasesContainer').appendChild(div);
@@ -944,7 +960,7 @@
       const blob = new Blob([xmlText], { type: 'text/xml' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'gaydesiner_blocks.xml';
+      a.download = 'willydesiner_blocks.xml';
       a.click();
     }
 
